@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.models.base import Base
 
 # Import all models here
-from app.models import User, Organization, TeamMember, Invitation  # noqa: F401
+from app.models import User, Organization, TeamMember, Invitation, Client, BrandAsset  # noqa: F401
 
 config = context.config
 settings = get_settings()
