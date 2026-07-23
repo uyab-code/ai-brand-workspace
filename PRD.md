@@ -100,8 +100,9 @@ Agency saat ini menggunakan banyak tools terpisah:
 - Logout
 - Refresh Token
 - Password Reset
+- Get Current User (`/auth/me` - returns `is_superuser` flag)
 
-**Note:** Public registration is disabled. Users can only join via invitation. Superadmin manages the internal system, while application users use Admin or Designer roles.
+**Note:** Public registration is disabled. Users can only join via invitation. Superadmin (`is_superuser=True`) manages the internal system, while application users use Admin or Designer roles.
 
 ---
 
@@ -165,9 +166,9 @@ Agency saat ini menggunakan banyak tools terpisah:
 |-------|------|-------------|
 | Brand Colors | Array | Brand color palette (hex codes) |
 | Brand Style Description | Text | Brand style guidelines |
-| Reference Images | Array | Reference images for AI generation |
+| Reference Images | Array | Reference images for AI generation (multiple, with thumbnail preview) |
 | Guideline PDF | File | Brand guideline document |
-| Logo | File | Client logo |
+| Logo | File | Client logo (with image preview) |
 | Brand Fonts | Array | Brand fonts for design generation |
 
 **Brand Fonts Fields:**
@@ -431,8 +432,8 @@ Approved OR Revision Needed
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | /api/clients | Create client |
-| GET | /api/clients | List clients |
-| GET | /api/clients/:id | Get client |
+| GET | /api/clients/:orgId | List clients by organization |
+| GET | /api/clients/detail/:id | Get client detail |
 | PUT | /api/clients/:id | Update client |
 | DELETE | /api/clients/:id | Delete client |
 
@@ -440,13 +441,22 @@ Approved OR Revision Needed
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | /api/clients/:id/assets/logo | Upload logo |
-| POST | /api/clients/:id/assets/guideline | Upload guideline |
-| POST | /api/clients/:id/assets/references | Upload reference |
-| POST | /api/clients/:id/assets/fonts | Add brand font |
-| DELETE | /api/clients/:id/assets/fonts/:fontId | Remove brand font |
-| PUT | /api/clients/:id/assets/colors | Update brand colors |
-| PUT | /api/clients/:id/assets/style | Update brand style |
+| GET | /api/assets/:clientId | Get all client assets |
+| POST | /api/assets/:clientId/logo | Upload logo |
+| POST | /api/assets/:clientId/guideline | Upload guideline |
+| POST | /api/assets/:clientId/references | Upload reference |
+| POST | /api/assets/:clientId/fonts | Add brand font |
+| DELETE | /api/assets/:clientId/fonts/:fontId | Remove brand font |
+| PUT | /api/assets/:clientId/colors | Update brand colors |
+| PUT | /api/assets/:clientId/style | Update brand style |
+
+### Invitations
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /api/invitations/:orgId/invite | Invite member (by admin) |
+| GET | /api/invitations/:token | Get invitation details |
+| POST | /api/invitations/:token/password | Set password (invited user) |
 
 ### Campaigns
 
@@ -497,6 +507,7 @@ Approved OR Revision Needed
 | email | String | Unique email |
 | name | String | Full name |
 | password_hash | String | Hashed password |
+| is_superuser | Boolean | System-level superadmin flag (default: false) |
 | created_at | Timestamp | Creation date |
 | updated_at | Timestamp | Last update |
 
@@ -509,15 +520,27 @@ Approved OR Revision Needed
 | owner_id | UUID | FK to users |
 | created_at | Timestamp | Creation date |
 
-### organization_members
+### team_members
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
 | organization_id | UUID | FK to organizations |
 | user_id | UUID | FK to users |
-| role | Enum | owner/admin/designer |
-| joined_at | Timestamp | Join date |
+| role | Enum | admin/designer |
+
+### invitations
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| email | String | Invited email |
+| organization_id | UUID | FK to organizations |
+| invited_by | UUID | FK to users |
+| token | String | Unique invitation token |
+| role | Enum | admin/designer |
+| status | Enum | pending/accepted/expired |
+| expires_at | Timestamp | Expiration date (7 days) |
 
 ### clients
 
@@ -530,13 +553,13 @@ Approved OR Revision Needed
 | status | Enum | active/inactive |
 | created_at | Timestamp | Creation date |
 
-### client_assets
+### brand_assets
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
 | client_id | UUID | FK to clients |
-| type | Enum | logo/guideline/reference/font |
+| asset_type | Enum | logo/guideline/reference/font |
 | file_url | String | GCS file URL |
 | brand_colors | JSON | Color palette |
 | brand_style | Text | Style description |
@@ -616,35 +639,36 @@ Approved OR Revision Needed
 
 ## Milestones
 
-### Phase 1 - Foundation (Week 1-4)
+### Phase 1 - Foundation (Week 1-2) ✅ Complete
 
-- [ ] Authentication system
-- [ ] Organization management
-- [ ] Basic UI framework
-- [ ] Database setup
+- [x] Authentication system (JWT + Refresh Token)
+- [x] Organization management (CRUD + Members)
+- [x] Invitation system (Superadmin/Admin invite flow)
+- [x] Superadmin role system (`is_superuser`)
+- [x] Basic UI framework (Login, Dashboard, Team)
 
-### Phase 2 - Client & Assets (Week 5-8)
+### Phase 2 - Client & Assets (Week 3-4) ✅ Complete
 
-- [ ] Client management
-- [ ] Asset library
-- [ ] File upload system
-- [ ] Brand color/style management
+- [x] Client management (CRUD + clickable cards + detail page)
+- [x] Asset library (Logo, Guideline, Reference, Fonts, Colors, Style)
+- [x] File upload system (Logo, Guideline PDF, Reference images)
+- [x] Brand color/style management (view + edit)
 
-### Phase 3 - Campaign & Calendar (Week 9-12)
+### Phase 3 - Campaign & Calendar (Week 5-6) ⏳ Next
 
 - [ ] Campaign management
 - [ ] Content calendar
 - [ ] Status workflow
-- [ ] Basic dashboard
+- [ ] Basic dashboard stats
 
-### Phase 4 - AI Integration (Week 13-16)
+### Phase 4 - AI Integration (Week 7-9)
 
 - [ ] AI design generator (single)
 - [ ] AI design generator (carousel)
 - [ ] Brand memory integration
 - [ ] Credit system
 
-### Phase 5 - Approval & Polish (Week 17-20)
+### Phase 5 - Approval & Polish (Week 10-11)
 
 - [ ] Approval workflow
 - [ ] Design history
@@ -673,6 +697,6 @@ Approved OR Revision Needed
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** July 22, 2026
+**Document Version:** 1.1
+**Last Updated:** July 23, 2026
 **Author:** Product Team

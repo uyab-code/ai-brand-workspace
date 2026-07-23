@@ -1,6 +1,7 @@
 "use client"
-import { useState, useEffect } from "react"
-import { useParams } from "next/navigation"
+import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
+import { useParams, useRouter } from "next/navigation"
 import { clientsApi } from "@/api/clients"
 import { assetsApi } from "@/api/assets"
 import { Client, BrandAsset } from "@/types/client"
@@ -21,6 +22,11 @@ export default function ClientDetailPage() {
   const [fontType, setFontType] = useState("primary")
   const [colors, setColors] = useState("")
   const [style, setStyle] = useState("")
+  const router = useRouter()
+  const [uploading, setUploading] = useState<string | null>(null)
+  const logoRef = useRef<HTMLInputElement>(null)
+  const guidelineRef = useRef<HTMLInputElement>(null)
+  const referenceRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { fetchData() }, [])
   const fetchData = async () => {
@@ -32,6 +38,8 @@ export default function ClientDetailPage() {
   }
 
   const logo = assets.find(a => a.asset_type === "logo")
+  const guideline = assets.find(a => a.asset_type === "guideline")
+  const referencesList = assets.filter(a => a.asset_type === "reference" && a.file_url)
   const fonts = assets.filter(a => a.asset_type === "font")
   const ca = assets.find(a => a.brand_colors)
   const sa = assets.find(a => a.brand_style)
@@ -55,6 +63,18 @@ export default function ClientDetailPage() {
     setEditing(false)
   }
 
+  const handleUpload = async (type: string, file: File | null | undefined) => {
+    if (!file) return
+    setUploading(type)
+    try {
+      if (type === "logo") await assetsApi.uploadLogo(clientId, file)
+      if (type === "guideline") await assetsApi.uploadGuideline(clientId, file)
+      if (type === "reference") await assetsApi.uploadReference(clientId, file)
+      await fetchData()
+    } catch (e) { console.error(e) }
+    setUploading(null)
+  }
+
   const addFont = async () => {
     if (!fontName) return
     const r = await assetsApi.addFont(clientId, fontName, fontType)
@@ -66,24 +86,38 @@ export default function ClientDetailPage() {
     if (r.success) setAssets(assets.filter(a => a.id !== fontId))
   }
 
+  const handleDelete = async () => {
+    if (!confirm("Hapus client ini? Semua data akan terhapus.")) return
+    const r = await clientsApi.delete(clientId)
+    if (r.success) router.push("/dashboard/clients")
+  }
+
   if (loading) return <div className="p-6 text-gray-500">Loading...</div>
   if (!client) return <div className="p-6 text-gray-500">Not found</div>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{client.name}</h1>
-          <p className="text-gray-500">{client.description || "-"}</p>
-        </div>
-        {editing ? (
-          <div className="flex gap-2">
-            <Button onClick={saveAll}>Simpan Semua</Button>
-            <Button variant="outline" onClick={() => setEditing(false)}>Batal</Button>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard/clients">
+            <Button variant="ghost" size="sm">← Kembali</Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">{client.name}</h1>
+            <p className="text-gray-500">{client.description || "-"}</p>
           </div>
-        ) : (
-          <Button variant="outline" onClick={startEdit}>Edit Client</Button>
-        )}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="text-red-600" onClick={handleDelete}>Hapus Client</Button>
+          {editing ? (
+            <>
+              <Button onClick={saveAll}>Simpan Semua</Button>
+              <Button variant="outline" onClick={() => setEditing(false)}>Batal</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={startEdit}>Edit Client</Button>
+          )}
+        </div>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -103,6 +137,53 @@ export default function ClientDetailPage() {
                 <p><span className="font-medium">Logo:</span> {logo ? "✓ Uploaded" : "✗ Belum ada"}</p>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Logo</CardTitle></CardHeader>
+          <CardContent>
+            {logo?.file_url
+              ? <img src={logo.file_url} alt="Logo" className="max-h-24 mb-2" />
+              : <p className="text-gray-500 mb-2">Belum ada logo</p>
+            }
+            <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => handleUpload("logo", e.target.files?.[0])} />
+            <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={uploading === "logo"}>
+              {uploading === "logo" ? "Uploading..." : "Upload Logo"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Brand Guideline</CardTitle></CardHeader>
+          <CardContent>
+            {guideline?.file_url
+              ? <p className="text-sm text-green-600 mb-2">PDF uploaded</p>
+              : <p className="text-gray-500 mb-2">Belum ada guideline</p>
+            }
+            <input ref={guidelineRef} type="file" accept=".pdf" className="hidden" onChange={e => handleUpload("guideline", e.target.files?.[0])} />
+            <Button variant="outline" size="sm" onClick={() => guidelineRef.current?.click()} disabled={uploading === "guideline"}>
+              {uploading === "guideline" ? "Uploading..." : "Upload PDF"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>References ({referencesList.length})</CardTitle></CardHeader>
+          <CardContent>
+            {referencesList.length > 0 ? (
+              <div className="flex gap-2 mb-2 flex-wrap">
+                {referencesList.map(r => (
+                  <img key={r.id} src={r.file_url!} alt="Ref" className="w-12 h-12 object-cover rounded" />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 mb-2">Belum ada reference</p>
+            )}
+            <input ref={referenceRef} type="file" accept="image/*" className="hidden" onChange={e => handleUpload("reference", e.target.files?.[0])} />
+            <Button variant="outline" size="sm" onClick={() => referenceRef.current?.click()} disabled={uploading === "reference"}>
+              {uploading === "reference" ? "Uploading..." : "Upload Reference"}
+            </Button>
           </CardContent>
         </Card>
 

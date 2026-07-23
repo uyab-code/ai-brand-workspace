@@ -254,6 +254,7 @@ Responsibilities:
 | id | UUID | Primary key |
 | email | String | Unique email |
 | password_hash | String | Argon2 hashed password |
+| is_superuser | Boolean | System-level superadmin flag (default: false) |
 | created_at | Timestamp | Creation date |
 
 ## organizations
@@ -270,7 +271,20 @@ Responsibilities:
 | id | UUID | Primary key |
 | organization_id | UUID | FK to organizations |
 | user_id | UUID | FK to users |
-| role | Enum | owner/admin/designer |
+| role | Enum | admin/designer |
+
+## invitations
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| email | String | Invited email |
+| organization_id | UUID | FK to organizations |
+| invited_by | UUID | FK to users |
+| token | String | Unique invitation token |
+| role | Enum | admin/designer |
+| status | Enum | pending/accepted/expired |
+| expires_at | Timestamp | Expiration date (7 days) |
 
 ## clients
 
@@ -289,6 +303,8 @@ Responsibilities:
 | client_id | UUID | FK to clients |
 | asset_type | Enum | logo/guideline/reference/font |
 | file_url | String | GCS file URL |
+| brand_colors | JSON | Color palette (hex codes) |
+| brand_style | Text | Brand style description |
 | font_name | String | Font name (for font assets) |
 | font_type | Enum | primary/secondary/accent (for font assets) |
 
@@ -422,6 +438,15 @@ When a user generates a design:
 | `/api/v1/approvals` | Approval workflow |
 | `/api/v1/comments` | Comments |
 
+## API Versioning
+
+All endpoints use `/api/v1/` prefix. Responses use format:
+```
+{ "success": true, "data": { ... } }          # Single
+{ "success": true, "data": [ ... ] }          # List
+{ "success": false, "error": { "code", "message" } }  # Error
+```
+
 ---
 
 # Security
@@ -509,6 +534,6 @@ When a user generates a design:
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** July 22, 2026
+**Document Version:** 1.1
+**Last Updated:** July 23, 2026
 **Author:** Engineering Team

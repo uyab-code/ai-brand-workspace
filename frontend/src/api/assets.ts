@@ -7,6 +7,24 @@ export const assetsApi = {
     const res = await api.get(`/assets/${clientId}`)
     return res.data
   },
+  uploadLogo: async (clientId: string, file: File): Promise<ApiResponse<BrandAsset>> => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await api.post(`/assets/${clientId}/logo`, formData, { headers: { "Content-Type": "multipart/form-data" } })
+    return res.data
+  },
+  uploadGuideline: async (clientId: string, file: File): Promise<ApiResponse<BrandAsset>> => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await api.post(`/assets/${clientId}/guideline`, formData, { headers: { "Content-Type": "multipart/form-data" } })
+    return res.data
+  },
+  uploadReference: async (clientId: string, file: File): Promise<ApiResponse<BrandAsset>> => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const res = await api.post(`/assets/${clientId}/references`, formData, { headers: { "Content-Type": "multipart/form-data" } })
+    return res.data
+  },
   addFont: async (clientId: string, fontName: string, fontType: string): Promise<ApiResponse<BrandAsset>> => {
     const res = await api.post(`/assets/${clientId}/fonts`, { font_name: fontName, font_type: fontType })
     return res.data

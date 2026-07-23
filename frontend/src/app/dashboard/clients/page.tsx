@@ -34,12 +34,6 @@ export default function ClientsPage() {
     if (r.success) { setClients([...clients, r.data]); setName(""); setShowForm(false) }
   }
 
-  const del = async (id: string) => {
-    if (!confirm("Hapus client?")) return
-    const r = await clientsApi.delete(id)
-    if (r.success) setClients(clients.filter(c => c.id !== id))
-  }
-
   if (loading) return <div className="p-6 text-gray-500">Loading...</div>
 
   return (
@@ -67,21 +61,19 @@ export default function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map(c => (
-            <Card key={c.id} className="hover:shadow-md">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg">{c.name}</CardTitle>
-                  <span className={`px-2 py-1 text-xs rounded-full ${c.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{c.status}</span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-500 mb-4">{c.description || "-"}</p>
-                <div className="flex gap-2">
-                  <Link href={`/dashboard/clients/${c.id}`}><Button variant="outline" size="sm">Detail</Button></Link>
-                  <Button variant="outline" size="sm" className="text-red-600" onClick={() => del(c.id)}>Hapus</Button>
-                </div>
-              </CardContent>
-            </Card>
+            <Link key={c.id} href={`/dashboard/clients/${c.id}`}>
+              <Card className="hover:shadow-md cursor-pointer transition-shadow">
+                <CardHeader className="pb-2">
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-lg">{c.name}</CardTitle>
+                    <span className={`px-2 py-1 text-xs rounded-full ${c.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{c.status}</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-500">{c.description || "-"}</p>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}
