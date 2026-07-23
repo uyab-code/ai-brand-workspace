@@ -101,7 +101,7 @@ Agency saat ini menggunakan banyak tools terpisah:
 - Refresh Token
 - Password Reset
 
-**Note:** Public registration is disabled. Users can only join via invitation from admin/owner.
+**Note:** Public registration is disabled. Users can only join via invitation. Superadmin manages the internal system, while application users use Admin or Designer roles.
 
 ---
 
@@ -114,18 +114,20 @@ Agency saat ini menggunakan banyak tools terpisah:
 - Manage Roles
 
 **Invitation Flow:**
-1. Admin/Owner invites user by email
+1. Superadmin or Admin invites user by email
 2. User receives email with invitation link
 3. User clicks link and sets password
-4. User is added to organization
+4. User is added to organization as Admin or Designer
 
 **Roles:**
 
-| Role | Description |
-|------|-------------|
-| Owner | Full access, manage organization settings |
-| Admin | Manage members, clients, and campaigns |
-| Designer | Create designs using brand assets |
+| Role | Scope | Description |
+|------|-------|-------------|
+| Superadmin | System/Internal | Internal system owner; manages user accounts, organizations, billing, and platform operations |
+| Admin | Organization | Agency admin; manages members, clients, campaigns, approvals, and operations inside one organization |
+| Designer | Organization | Creates content and AI-generated designs using brand assets |
+
+**Note:** Owner is not an application user role. Owner-level access is represented by Superadmin and is reserved for the platform operator.
 
 ---
 

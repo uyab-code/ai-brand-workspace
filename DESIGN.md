@@ -137,11 +137,16 @@ Responsibilities:
 | invitations | Pending invitations |
 
 **Invitation Flow:**
-1. Admin/Owner creates invitation with email and role
+1. Superadmin or Admin creates invitation with email and role
 2. System generates unique token and stores invitation
 3. User receives email with invitation link
 4. User sets password via invitation link
-5. User account is created and added to organization
+5. User account is created and added to organization as Admin or Designer
+
+**Role Model:**
+- Superadmin is system-level (`users.is_superuser = true`) and reserved for the platform operator.
+- Organization users only use Admin and Designer roles.
+- Owner is intentionally not exposed as an application user role.
 
 ---
 

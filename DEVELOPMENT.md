@@ -330,7 +330,7 @@ NEXT_PUBLIC_APP_NAME=AI Brand Workspace
 
 **Focus:** Project setup, Authentication, Organization management, Invitation system
 
-**Note:** Public registration is disabled. Users are invited by admin/owner.
+**Note:** Public registration is disabled. Users are invited by Superadmin or organization Admin. Application users only use Admin and Designer roles.
 
 #### Tasks
 
@@ -363,7 +363,7 @@ NEXT_PUBLIC_APP_NAME=AI Brand Workspace
 - [ ] Admin can invite team members
 - [ ] Invited users can set password
 - [ ] Public registration is disabled
-- [ ] Roles are enforced (Owner/Admin/Designer)
+- [ ] Roles are enforced (Superadmin system role, Admin/Designer organization roles)
 - [ ] No critical security vulnerabilities
 
 ---
