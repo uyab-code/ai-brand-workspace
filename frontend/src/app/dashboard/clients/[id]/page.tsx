@@ -15,6 +15,9 @@ export default function ClientDetailPage() {
   const [assets, setAssets] = useState<BrandAsset[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState("overview")
+  const [editing, setEditing] = useState(false)
+  const [editName, setEditName] = useState("")
+  const [editDesc, setEditDesc] = useState("")
   const [fontName, setFontName] = useState("")
   const [fontType, setFontType] = useState("primary")
   const [colors, setColors] = useState("")
@@ -27,6 +30,17 @@ export default function ClientDetailPage() {
     const a = await assetsApi.list(clientId)
     if (a.success) setAssets(a.data)
     setLoading(false)
+  }
+
+  const startEdit = () => {
+    setEditName(client?.name || "")
+    setEditDesc(client?.description || "")
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    const r = await clientsApi.update(clientId, { name: editName, description: editDesc })
+    if (r.success) { setClient(r.data); setEditing(false) }
   }
 
   const addFont = async () => {
@@ -57,7 +71,15 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold">{client.name}</h1><p className="text-gray-500">{client.description || "-"}</p></div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{client.name}</h1>
+          <p className="text-gray-500">{client.description || "-"}</p>
+        </div>
+        {!editing && tab === "overview" && (
+          <Button variant="outline" onClick={startEdit}>Edit Client</Button>
+        )}
+      </div>
       <div className="flex gap-2 border-b pb-2">
         {["overview", "assets", "brand"].map(t => (
           <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 rounded-t text-sm font-medium ${tab === t ? "bg-primary text-white" : "text-gray-600"}`}>{t.charAt(0).toUpperCase() + t.slice(1)}</button>
@@ -69,9 +91,24 @@ export default function ClientDetailPage() {
           <Card>
             <CardHeader><CardTitle>Client Info</CardTitle></CardHeader>
             <CardContent>
-              <p>Status: {client.status}</p>
-              <p>Logo: {logo ? "✓" : "✗"}</p>
-              <p>Fonts: {fonts.length}</p>
+              {editing ? (
+                <div className="space-y-3">
+                  <div><Label>Nama</Label><Input value={editName} onChange={e => setEditName(e.target.value)} /></div>
+                  <div><Label>Deskripsi</Label><Input value={editDesc} onChange={e => setEditDesc(e.target.value)} /></div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={saveEdit}>Simpan</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Batal</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p><span className="font-medium">Nama:</span> {client.name}</p>
+                  <p><span className="font-medium">Deskripsi:</span> {client.description || "-"}</p>
+                  <p><span className="font-medium">Status:</span> {client.status}</p>
+                  <p><span className="font-medium">Logo:</span> {logo ? "✓ Uploaded" : "✗ Belum ada"}</p>
+                  <p><span className="font-medium">Fonts:</span> {fonts.length} font</p>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
