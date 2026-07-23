@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy import select
 from app.config import get_settings
 from app.models.user import User
-from app.models.organization import Organization, TeamMember
 from app.core.security import hash_password
 
 settings = get_settings()
@@ -25,34 +24,27 @@ async def create_superadmin():
         existing_user = result.scalar_one_or_none()
 
         if existing_user:
-            print("User already exists!")
+            # Update existing user to superadmin
+            existing_user.is_superuser = True
+            existing_user.name = "Super Admin"
+            await db.commit()
+            print("=" * 50)
+            print("User updated to Superadmin!")
+            print("=" * 50)
+            print(f"Email: yabo@gmail.com")
+            print(f"Is Superuser: True")
+            print("=" * 50)
+            await engine.dispose()
             return
 
-        # Create user
+        # Create superadmin user
         user = User(
             email="yabo@gmail.com",
             password_hash=hash_password("yaboyabo"),
             name="Super Admin",
+            is_superuser=True,
         )
         db.add(user)
-        await db.flush()
-
-        # Create organization
-        org = Organization(
-            name="AI Brand Workspace",
-            owner_id=user.id,
-        )
-        db.add(org)
-        await db.flush()
-
-        # Add user as owner
-        team_member = TeamMember(
-            organization_id=org.id,
-            user_id=user.id,
-            role="owner",
-        )
-        db.add(team_member)
-
         await db.commit()
 
         print("=" * 50)
@@ -60,8 +52,7 @@ async def create_superadmin():
         print("=" * 50)
         print(f"Email: yabo@gmail.com")
         print(f"Password: yaboyabo")
-        print(f"Organization: AI Brand Workspace")
-        print(f"Role: owner")
+        print(f"Is Superuser: True")
         print("=" * 50)
 
     await engine.dispose()

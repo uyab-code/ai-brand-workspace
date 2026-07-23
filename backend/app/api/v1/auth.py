@@ -57,6 +57,7 @@ async def get_current_user_info(
         id=str(current_user.id),
         email=current_user.email,
         name=current_user.name,
+        is_superuser=current_user.is_superuser,
     )
     return SuccessResponse(data=user_data)
 

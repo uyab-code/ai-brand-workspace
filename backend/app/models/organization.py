@@ -36,7 +36,7 @@ class TeamMember(Base, UUIDPrimaryKeyMixin):
         nullable=False,
     )
     role: Mapped[str] = mapped_column(
-        Enum("owner", "admin", "designer", name="member_role"),
+        Enum("admin", "designer", name="member_role"),
         nullable=False,
         default="designer",
     )

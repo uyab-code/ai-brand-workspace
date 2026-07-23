@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ForbiddenException, NotFoundException
-from app.core.permissions import Role
+from app.core.permissions import Role, has_permission
 from app.models.organization import Organization, TeamMember
 from app.models.user import User
 from app.schemas.organization import (
@@ -21,18 +21,22 @@ class OrganizationService:
         self.db = db
 
     async def create_organization(
-        self, data: CreateOrganizationRequest, owner_id: UUID
+        self, data: CreateOrganizationRequest, creator_id: UUID
     ) -> OrganizationResponse:
         # Create organization
-        org = Organization(name=data.name, owner_id=owner_id)
+        org = Organization(name=data.name, owner_id=creator_id)
         self.db.add(org)
         await self.db.flush()
 
-        # Add owner as team member
+        # Check if creator is superadmin - if so, add as admin, otherwise add as admin
+        creator = await self._get_user_by_id(creator_id)
+        role = Role.ADMIN.value if creator and not creator.is_superuser else Role.ADMIN.value
+
+        # Add creator as team member with admin role
         team_member = TeamMember(
             organization_id=org.id,
-            user_id=owner_id,
-            role=Role.OWNER.value,
+            user_id=creator_id,
+            role=role,
         )
         self.db.add(team_member)
         await self.db.commit()
@@ -195,6 +199,10 @@ class OrganizationService:
         )
         return result.scalar_one_or_none()
 
+    async def _get_user_by_id(self, user_id: UUID) -> Optional[User]:
+        result = await self.db.execute(select(User).where(User.id == user_id))
+        return result.scalar_one_or_none()
+
     async def _check_membership(self, org_id: UUID, user_id: UUID) -> TeamMember:
         result = await self.db.execute(
             select(TeamMember).where(
@@ -203,14 +211,25 @@ class OrganizationService:
             )
         )
         member = result.scalar_one_or_none()
+
+        # If not member, check if superadmin
         if not member:
+            user = await self._get_user_by_id(user_id)
+            if user and user.is_superuser:
+                # Create a virtual member with admin role for superadmin
+                class VirtualMember:
+                    role = Role.ADMIN.value
+                return VirtualMember()
             raise ForbiddenException("Not a member of this organization")
         return member
 
     async def _check_permission(self, org_id: UUID, user_id: UUID, permission: str):
-        from app.core.permissions import has_permission, Role
-
         member = await self._check_membership(org_id, user_id)
+
+        # Get user to check superadmin status
+        user = await self._get_user_by_id(user_id)
+        is_superuser = user.is_superuser if user else False
+
         role = Role(member.role)
-        if not has_permission(role, permission):
+        if not has_permission(role, permission, is_superuser):
             raise ForbiddenException(f"Insufficient permissions: {permission}")
