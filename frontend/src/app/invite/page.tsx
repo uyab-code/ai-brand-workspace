@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,6 +10,18 @@ import { Label } from "@/components/ui/label"
 import { invitationsApi, InvitationDetail } from "@/api/invitations"
 
 export default function InvitePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <InviteContent />
+    </Suspense>
+  )
+}
+
+function InviteContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get("token")
@@ -83,10 +95,10 @@ export default function InvitePage() {
 
   if (isLoadingInvitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
           <CardContent className="p-6">
-            <p className="text-center text-gray-500">Loading invitation details...</p>
+            <p className="text-center text-muted-foreground">Loading invitation details...</p>
           </CardContent>
         </Card>
       </div>
@@ -95,17 +107,17 @@ export default function InvitePage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
           <CardContent className="p-6">
             <div className="text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Berhasil!</h2>
-              <p className="text-gray-500">Password berhasil dibuat. Mengalihkan ke halaman login...</p>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Berhasil!</h2>
+              <p className="text-muted-foreground">Password berhasil dibuat. Mengalihkan ke halaman login...</p>
             </div>
           </CardContent>
         </Card>
@@ -114,7 +126,7 @@ export default function InvitePage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Buat Password</CardTitle>

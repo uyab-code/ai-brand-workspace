@@ -458,25 +458,19 @@ Approved OR Revision Needed
 | GET | /api/invitations/:token | Get invitation details |
 | POST | /api/invitations/:token/password | Set password (invited user) |
 
-### Campaigns
+### Content Briefs
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | /api/campaigns | Create campaign |
-| GET | /api/campaigns | List campaigns |
-| GET | /api/campaigns/:id | Get campaign |
-| PUT | /api/campaigns/:id | Update campaign |
-| DELETE | /api/campaigns/:id | Delete campaign |
-
-### Content Calendar
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | /api/calendar | Create content |
-| GET | /api/calendar | List content |
-| GET | /api/calendar/:id | Get content |
-| PUT | /api/calendar/:id | Update content |
-| DELETE | /api/calendar/:id | Delete content |
+| POST | /api/content-briefs | Create brief with slides |
+| GET | /api/content-briefs/:orgId | List briefs by organization |
+| GET | /api/content-briefs/detail/:id | Get brief detail with slides |
+| PUT | /api/content-briefs/:id | Update brief metadata |
+| PATCH | /api/content-briefs/:id/status | Update brief status |
+| DELETE | /api/content-briefs/:id | Delete brief |
+| PUT | /api/content-briefs/slides/:slideId | Update single slide |
+| GET | /api/content-briefs/upcoming/list | List upcoming briefs |
+| GET | /api/content-briefs/stats/:orgId | Get brief statistics |
 
 ### AI Generator
 
@@ -567,29 +561,31 @@ Approved OR Revision Needed
 | font_type | Enum | primary/secondary/accent (for font type) |
 | created_at | Timestamp | Creation date |
 
-### campaigns
+### content_briefs
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
+| organization_id | UUID | FK to organizations |
 | client_id | UUID | FK to clients |
-| name | String | Campaign name |
-| description | Text | Description |
-| start_date | Date | Start date |
-| end_date | Date | End date |
+| name | String | Brief name |
+| content_type | Enum | feed/story/carousel |
+| platform | Enum | instagram/tiktok/facebook/twitter/linkedin |
+| deadline_date | Date | Deadline |
+| status | Enum | draft/in_progress/generated/in_review/approved/published |
 | created_at | Timestamp | Creation date |
+| updated_at | Timestamp | Last update |
 
-### content_calendar
+### brief_slides
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| campaign_id | UUID | FK to campaigns |
-| content_type | Enum | feed/story/carousel |
-| status | Enum | draft/in_progress/generated/in_review/approved/published |
-| scheduled_date | Date | Publication date |
-| prompt | Text | Generation prompt |
-| created_at | Timestamp | Creation date |
+| brief_id | UUID | FK to content_briefs |
+| slide_title | String | Slide title |
+| brief | Text | Design brief/description |
+| notes | Text | Additional notes (nullable) |
+| slide_number | Integer | Slide order |
 
 ### generated_designs
 
@@ -654,19 +650,22 @@ Approved OR Revision Needed
 - [x] File upload system (Logo, Guideline PDF, Reference images)
 - [x] Brand color/style management (view + edit)
 
-### Phase 3 - Campaign & Calendar (Week 5-6) ⏳ Next
+### Phase 3 - Content Library (Week 5-6) ✅ Complete
 
-- [ ] Campaign management
-- [ ] Content calendar
-- [ ] Status workflow
-- [ ] Basic dashboard stats
+- [x] Content brief management (CRUD with slides)
+- [x] Content Library table view (nama, tipe, platform, tanggal, deadline, status)
+- [x] Brief detail with inline slide editing
+- [x] Status workflow (draft → published with transitions)
+- [x] Platform support (Instagram, TikTok, Facebook, Twitter/X, LinkedIn)
+- [x] Dashboard with real stats (clients, briefs, upcoming briefs)
 
-### Phase 4 - AI Integration (Week 7-9)
+### Phase 4 - AI Integration (Week 7-9) ✅ Complete
 
-- [ ] AI design generator (single)
-- [ ] AI design generator (carousel)
-- [ ] Brand memory integration
-- [ ] Credit system
+- [x] AI design generator (single image + carousel)
+- [x] Brand memory integration (prompt assembly dari brand assets)
+- [x] Credit system (balance, deduct, auto-init)
+- [x] Design history (gallery, detail, delete)
+- [x] Frontend pages (gallery, generate, detail)
 
 ### Phase 5 - Approval & Polish (Week 10-11)
 

@@ -21,9 +21,16 @@ class Settings(BaseSettings):
     GCS_BUCKET_NAME: str = "brandwork-assets"
     GCS_CREDENTIALS_PATH: str = "./credentials/gcs-service-account.json"
 
-    # OpenAI
+    # AI Image Generation
+    AI_PROVIDER: str = "pollinations"  # "pollinations" (free) or "openai"
     OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "dall-e-3"
+    OPENAI_MODEL: str = "gpt-image-1"
+    OPENAI_IMAGE_QUALITY: str = "low"
+
+    # Design Director (AI prompt elaborator)
+    AI_TEXT_PROVIDER: str = "gemini"  # "gemini" (free) or "openai"
+    DESIGN_DIRECTOR_MODEL: str = "gpt-5-mini"
+    GEMINI_API_KEY: str = ""
 
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]

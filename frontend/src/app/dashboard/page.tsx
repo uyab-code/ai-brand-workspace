@@ -1,134 +1,156 @@
 "use client"
 
+import { useState, useEffect } from "react"
+import Link from "next/link"
 import { useAuth } from "@/hooks/useAuth"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { organizationsApi } from "@/api/organizations"
+import { clientsApi } from "@/api/clients"
+import { contentBriefsApi } from "@/api/content-briefs"
+import { designsApi } from "@/api/designs"
+import { creditsApi } from "@/api/credits"
+import { ContentBrief, CONTENT_STATUS_LABELS, ContentStatus } from "@/types/content-brief"
+import { GeneratedDesign } from "@/types/design"
+import { CreditBalance } from "@/types/credit"
+import { StatusBadge } from "@/components/ui/status-badge"
+import { PageHeader } from "@/components/ui/page-header"
 
 export default function DashboardPage() {
   const { user } = useAuth()
+  const [clientsCount, setClientsCount] = useState(0)
+  const [briefsCount, setBriefsCount] = useState(0)
+  const [upcomingBriefs, setUpcomingBriefs] = useState<ContentBrief[]>([])
+  const [recentDesigns, setRecentDesigns] = useState<GeneratedDesign[]>([])
+  const [creditBalance, setCreditBalance] = useState<CreditBalance | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { loadStats() }, [])
+
+  const loadStats = async () => {
+    const orgRes = await organizationsApi.list()
+    if (orgRes.success && orgRes.data.length) {
+      const orgId = orgRes.data[0].id
+      const [clRes, statsRes, upcomingRes, creditRes] = await Promise.all([
+        clientsApi.list(orgId),
+        contentBriefsApi.stats(orgId),
+        contentBriefsApi.getUpcoming(),
+        creditsApi.getBalance(orgId),
+      ])
+      if (clRes.success) setClientsCount(clRes.data.length)
+      if (statsRes.success) setBriefsCount(statsRes.data.total)
+      if (upcomingRes.success) setUpcomingBriefs(upcomingRes.data)
+      if (creditRes.success) setCreditBalance(creditRes.data)
+
+      const allDesigns: GeneratedDesign[] = []
+      if (clRes.success) {
+        await Promise.allSettled(
+          clRes.data.map(async (cl) => {
+            const dr = await designsApi.listByClient(cl.id)
+            if (dr.success) allDesigns.push(...dr.data)
+          })
+        )
+        allDesigns.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        setRecentDesigns(allDesigns.slice(0, 4))
+      }
+    }
+    setLoading(false)
+  }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Selamat Datang, {user?.name || "User"}!
-        </h1>
-        <p className="text-gray-500">
-          Kelola brand asset dan konten Anda dengan AI
-        </p>
+    <div className="space-y-6 max-w-6xl mx-auto">
+      <PageHeader
+        title={`Selamat datang, ${user?.name || "User"}`}
+        description="Kelola brand asset dan konten Anda"
+      />
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Link href="/dashboard/clients">
+          <div className="bg-card rounded-xl border border-border p-4 hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer">
+            <p className="text-2xl font-semibold text-foreground">{loading ? "..." : clientsCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Total Clients</p>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/content-briefs">
+          <div className="bg-card rounded-xl border border-border p-4 hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer">
+            <p className="text-2xl font-semibold text-foreground">{loading ? "..." : briefsCount}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Content Briefs</p>
+          </div>
+        </Link>
+
+        <div className="bg-card rounded-xl border border-border p-4">
+          <p className="text-2xl font-semibold text-foreground">{loading ? "..." : creditBalance?.balance ?? 0}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Credits Tersisa</p>
+        </div>
+
+        <Link href="/dashboard/content-briefs">
+          <div className="bg-card rounded-xl border border-border p-4 hover:border-primary/20 hover:shadow-sm transition-all cursor-pointer">
+            <p className="text-lg font-semibold text-primary">+ Buat Brief</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Buat konten baru</p>
+          </div>
+        </Link>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-            <svg
-              className="w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Aktif</p>
-          </CardContent>
-        </Card>
+      {/* Bottom Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Recent Designs */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Recent Designs</h3>
+          </div>
+          <div className="p-5">
+            {recentDesigns.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Belum ada desain</p>
+            ) : (
+              <div className="grid grid-cols-4 gap-2">
+                {recentDesigns.map((d) => (
+                  <Link key={d.id} href={`/dashboard/designs/${d.id}`}>
+                    <img
+                      src={d.image_url}
+                      alt=""
+                      className="aspect-square object-cover rounded-lg bg-background"
+                      onError={(e) => { (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=AI&font=montserrat" }}
+                    />
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Campaigns</CardTitle>
-            <svg
-              className="w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"
-              />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Berjalan</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Designs</CardTitle>
-            <svg
-              className="w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Total</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Credits</CardTitle>
-            <svg
-              className="w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">0</div>
-            <p className="text-xs text-muted-foreground">Tersisa</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Designs</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500 text-sm">Belum ada desain</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Upcoming Content</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-500 text-sm">Belum ada konten terjadwal</p>
-          </CardContent>
-        </Card>
+        {/* Upcoming Briefs */}
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="text-sm font-semibold text-foreground">Upcoming Briefs</h3>
+          </div>
+          <div className="p-5">
+            {loading ? (
+              <div className="flex justify-center py-6">
+                <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+              </div>
+            ) : upcomingBriefs.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">Belum ada brief dengan deadline</p>
+            ) : (
+              <div className="space-y-1">
+                {upcomingBriefs.map((b) => (
+                  <Link
+                    key={b.id}
+                    href={`/dashboard/content-briefs/${b.id}`}
+                    className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-background transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={b.status as ContentStatus} />
+                      <span className="text-sm text-foreground">{b.name.length > 30 ? b.name.slice(0, 30) + "..." : b.name}</span>
+                    </div>
+                    {b.deadline_date && (
+                      <span className="text-xs text-muted-foreground">{new Date(b.deadline_date).toLocaleDateString("id-ID")}</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

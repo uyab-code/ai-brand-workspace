@@ -80,7 +80,7 @@ export function InviteMember({ organizationId, onInviteSent }: InviteMemberProps
                   >
                     Salin Link Undangan
                   </Button>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Atau bagikan link ini: /invite?token={inviteToken}
                   </p>
                 </div>
@@ -106,7 +106,7 @@ export function InviteMember({ organizationId, onInviteSent }: InviteMemberProps
               id="role"
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-[10px] focus:outline-none focus:ring-2 focus:ring-ring focus-visible:outline-none focus-visible:ring-offset-2"
             >
               <option value="designer">Designer</option>
               <option value="admin">Admin</option>

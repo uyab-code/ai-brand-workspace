@@ -35,6 +35,11 @@ async def remove_font(client_id: UUID, font_id: UUID, db: AsyncSession = Depends
     await AssetService(db).remove_font(client_id, font_id, current_user.id)
     return SuccessResponse(data={"message": "Font removed"})
 
+@router.delete("/{client_id}/assets/{asset_id}")
+async def remove_asset(client_id: UUID, asset_id: UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    await AssetService(db).remove_asset(client_id, asset_id, current_user.id)
+    return SuccessResponse(data={"message": "Asset removed"})
+
 @router.put("/{client_id}/colors", response_model=SuccessResponse[AssetResponse])
 async def update_colors(client_id: UUID, data: BrandColorsRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     return SuccessResponse(data=await AssetService(db).update_brand_colors(client_id, data, current_user.id))

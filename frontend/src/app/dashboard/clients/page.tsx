@@ -4,10 +4,28 @@ import Link from "next/link"
 import { organizationsApi } from "@/api/organizations"
 import { clientsApi } from "@/api/clients"
 import { Client } from "@/types/client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { PageHeader } from "@/components/ui/page-header"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Users } from "lucide-react"
+
+function ClientInitials({ name }: { name: string }) {
+  const initials = name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
+
+  return (
+    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground shrink-0">
+      {initials}
+    </div>
+  )
+}
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
@@ -15,6 +33,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState("")
+  const [description, setDescription] = useState("")
 
   useEffect(() => { load() }, [])
   const load = async () => {
@@ -29,49 +48,81 @@ export default function ClientsPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!orgId) return
-    const r = await clientsApi.create(orgId, name)
-    if (r.success) { setClients([...clients, r.data]); setName(""); setShowForm(false) }
+    if (!orgId || !name.trim()) return
+    const r = await clientsApi.create(orgId, name, description || undefined)
+    if (r.success) { setClients([...clients, r.data]); setName(""); setDescription(""); setShowForm(false) }
   }
 
-  if (loading) return <div className="p-6 text-gray-500">Loading...</div>
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
+    </div>
+  )
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Clients</h1>
-          <p className="text-gray-500">Kelola daftar client Anda</p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Batal" : "+ Tambah Client"}</Button>
-      </div>
+      <PageHeader
+        title="Clients"
+        description="Kelola daftar client Anda"
+        actions={
+          <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Batal" : "+ Tambah Client"}</Button>
+        }
+      />
       {showForm && (
-        <Card>
-          <CardHeader><CardTitle>Tambah Client</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={create} className="space-y-4">
-              <div><Label>Nama Client</Label><Input value={name} onChange={e => setName(e.target.value)} required /></div>
+        <Card className="p-6 space-y-4">
+          <h3 className="text-sm font-semibold">Tambah Client Baru</h3>
+          <form onSubmit={create} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Nama Client</Label>
+                <Input value={name} onChange={e => setName(e.target.value)} required placeholder="e.g. PT Maju Jaya" />
+              </div>
+              <div>
+                <Label>Deskripsi (opsional)</Label>
+                <Input value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Brand fashion premium" />
+              </div>
+            </div>
+            <div className="flex gap-2">
               <Button type="submit">Simpan</Button>
-            </form>
-          </CardContent>
+              <Button variant="outline" type="button" onClick={() => setShowForm(false)}>Batal</Button>
+            </div>
+          </form>
         </Card>
       )}
       {clients.length === 0 ? (
-        <Card><CardContent className="p-6 text-center text-gray-500">Belum ada client</CardContent></Card>
+        <EmptyState
+          icon={<Users className="h-8 w-8" />}
+          title="Belum ada client"
+          description='Klik "+ Tambah Client" untuk menambah client pertama.'
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map(c => (
             <Link key={c.id} href={`/dashboard/clients/${c.id}`}>
-              <Card className="hover:shadow-md cursor-pointer transition-shadow">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-center">
-                    <CardTitle className="text-lg">{c.name}</CardTitle>
-                    <span className={`px-2 py-1 text-xs rounded-full ${c.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{c.status}</span>
+              <Card className="p-4 hover:shadow-md cursor-pointer transition-all duration-200 h-full">
+                <div className="flex gap-4">
+                  <ClientInitials name={c.name} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-foreground truncate">{c.name}</h3>
+                      <span className={`shrink-0 px-2 py-0.5 text-[11px] font-medium rounded-full ${
+                        c.status === "active"
+                          ? "bg-green-50 text-green-700"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {c.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                      {c.description || "Tidak ada deskripsi"}
+                    </p>
+                    <div className="mt-2 text-right">
+                      <span className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                        See detail →
+                      </span>
+                    </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-500">{c.description || "-"}</p>
-                </CardContent>
+                </div>
               </Card>
             </Link>
           ))}

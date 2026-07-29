@@ -38,146 +38,158 @@ ai-brand-workspace/
 │   │   │   ├── __init__.py
 │   │   │   ├── deps.py               # Dependencies injection
 │   │   │   └── v1/
-│   │   │       ├── __init__.py
-│   │   │       ├── auth.py
-│   │   │       ├── organizations.py
-│   │   │       ├── clients.py
-│   │   │       ├── assets.py
-│   │   │       ├── campaigns.py
-│   │   │       ├── content.py
-│   │   │       ├── designs.py
-│   │   │       ├── approvals.py
-│   │   │       └── comments.py
+│   │   │       ├── __init__.py       # Route registry (7 routers)
+│   │   │       ├── auth.py           # ✅ Phase 1
+│   │   │       ├── organizations.py  # ✅ Phase 1
+│   │   │       ├── invitations.py    # ✅ Phase 1
+│   │   │       ├── clients.py        # ✅ Phase 2
+│   │   │       ├── assets.py         # ✅ Phase 2
+│   │   │       ├── content_briefs.py # ✅ Phase 3
+│   │   │       ├── designs.py        # ⏳ Phase 4
+│   │   │       ├── approvals.py      # ⏳ Phase 5
+│   │   │       └── comments.py       # ⏳ Phase 5
 │   │   │
 │   │   ├── core/                     # Core utilities
 │   │   │   ├── __init__.py
 │   │   │   ├── security.py           # JWT, password hashing
-│   │   │   ├── permissions.py        # RBAC
+│   │   │   ├── permissions.py        # RBAC (admin/designer/superadmin)
 │   │   │   └── exceptions.py         # Custom exceptions
 │   │   │
 │   │   ├── models/                   # SQLAlchemy models
-│   │   │   ├── __init__.py
-│   │   │   ├── user.py
-│   │   │   ├── organization.py
-│   │   │   ├── client.py
-│   │   │   ├── asset.py
-│   │   │   ├── campaign.py
-│   │   │   ├── content.py
-│   │   │   ├── design.py
-│   │   │   ├── approval.py
-│   │   │   └── credit.py
+│   │   │   ├── __init__.py           # Registry: 8 models
+│   │   │   ├── base.py               # Base, TimestampMixin, UUIDPrimaryKeyMixin
+│   │   │   ├── user.py               # ✅ Phase 1
+│   │   │   ├── organization.py       # ✅ Phase 1 (Organization + TeamMember)
+│   │   │   ├── invitation.py         # ✅ Phase 1
+│   │   │   ├── client.py             # ✅ Phase 2 (Client + BrandAsset)
+│   │   │   ├── content_brief.py      # ✅ Phase 3 (ContentBrief + BriefSlide)
+│   │   │   ├── design.py             # ⏳ Phase 4
+│   │   │   └── credit.py             # ⏳ Phase 4
 │   │   │
 │   │   ├── schemas/                  # Pydantic schemas
 │   │   │   ├── __init__.py
 │   │   │   ├── auth.py
 │   │   │   ├── organization.py
+│   │   │   ├── invitation.py
 │   │   │   ├── client.py
 │   │   │   ├── asset.py
-│   │   │   ├── campaign.py
-│   │   │   ├── content.py
-│   │   │   ├── design.py
-│   │   │   ├── approval.py
-│   │   │   └── common.py             # Base response schemas
+│   │   │   ├── content_brief.py      # ✅ Phase 3
+│   │   │   ├── design.py             # ⏳ Phase 4
+│   │   │   └── common.py             # SuccessResponse, ErrorResponse, PaginatedResponse
 │   │   │
 │   │   ├── services/                 # Business logic
 │   │   │   ├── __init__.py
 │   │   │   ├── auth_service.py
 │   │   │   ├── organization_service.py
+│   │   │   ├── invitation_service.py
 │   │   │   ├── client_service.py
 │   │   │   ├── asset_service.py
-│   │   │   ├── campaign_service.py
-│   │   │   ├── content_service.py
-│   │   │   ├── design_service.py
-│   │   │   ├── approval_service.py
-│   │   │   ├── storage_service.py    # GCS integration
-│   │   │   └── ai_service.py         # OpenAI integration
+│   │   │   ├── content_brief_service.py # ✅ Phase 3
+│   │   │   ├── design_service.py     # ⏳ Phase 4
+│   │   │   ├── ai_service.py         # ⏳ Phase 4 (OpenAI integration)
+│   │   │   ├── credit_service.py     # ⏳ Phase 4
+│   │   │   └── approval_service.py   # ⏳ Phase 5
 │   │   │
 │   │   └── utils/                    # Helper functions
 │   │       ├── __init__.py
 │   │       └── helpers.py
 │   │
-│   ├── alembic/                      # Database migrations
+│   ├── alembic/                      # Database migrations (8 versions)
 │   │   ├── versions/
+│   │   │   ├── cbd740712a18_initial_migration.py          # users, orgs, team_members
+│   │   │   ├── e1a2b3c4d5e6_add_is_superuser_column.py   # users.is_superuser
+│   │   │   ├── da94f55edcd4_add_superadmin_role.py
+│   │   │   ├── 0e14fca84567_add_invitation_table.py
+│   │   │   ├── 5cee287d01a5_add_invitation_table.py
+│   │   │   ├── d017d58685a5_add_clients_and_brand_assets.py  # clients, brand_assets
+│   │   │   ├── 0619a5af74e9_add_campaigns_and_content.py     # campaigns, content_items (replaced)
+│   │   │   └── 525cbfd0619e_add_content_briefs.py           # content_briefs, brief_slides ✅
 │   │   └── env.py
-│   │
-│   ├── tests/                        # Test files
-│   │   ├── conftest.py
-│   │   ├── test_auth.py
-│   │   └── ...
 │   │
 │   ├── alembic.ini
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
 │
-├── frontend/                         # Next.js Frontend
+├── frontend/                         # Next.js 15 Frontend
 │   ├── src/
 │   │   ├── app/                      # App Router pages
-│   │   │   ├── layout.tsx
-│   │   │   ├── page.tsx              # Landing/redirect
+│   │   │   ├── layout.tsx            # Root layout
+│   │   │   ├── page.tsx              # Root redirect
 │   │   │   │
-│   │   │   ├── (auth)/               # Auth routes (no layout)
-│   │   │   │   ├── login/
-│   │   │   │   ├── register/
-│   │   │   │   └── forgot-password/
+│   │   │   ├── (auth)/               # Auth routes
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── login/page.tsx
+│   │   │   │   ├── register/page.tsx
+│   │   │   │   └── forgot-password/page.tsx
 │   │   │   │
-│   │   │   ├── (dashboard)/          # Dashboard routes
-│   │   │   │   ├── layout.tsx        # Dashboard layout
-│   │   │   │   ├── page.tsx          # Dashboard home
+│   │   │   ├── dashboard/            # Dashboard routes (auth-gated)
+│   │   │   │   ├── layout.tsx        # Sidebar + Navbar + auth check
+│   │   │   │   ├── page.tsx          # ✅ Dashboard with real stats
 │   │   │   │   ├── clients/
-│   │   │   │   ├── campaigns/
-│   │   │   │   ├── calendar/
-│   │   │   │   ├── designs/
+│   │   │   │   │   ├── page.tsx      # ✅ Client list
+│   │   │   │   │   └── [id]/page.tsx # ✅ Client detail + assets
+│   │   │   │   ├── content-briefs/
+│   │   │   │   │   ├── page.tsx      # ✅ Content Library table
+│   │   │   │   │   └── [id]/page.tsx # ✅ Brief detail + slides
+│   │   │   │   ├── designs/          # ⏳ Phase 4
 │   │   │   │   └── settings/
+│   │   │   │       └── team/page.tsx # ✅ Team management
 │   │   │   │
-│   │   │   └── api/                  # Next.js API routes (if needed)
+│   │   │   └── invite/
+│   │   │       └── page.tsx          # ✅ Set password (invitation flow)
 │   │   │
-│   │   ├── components/               # React components
-│   │   │   ├── ui/                   # shadcn/ui components
-│   │   │   ├── layout/               # Layout components
-│   │   │   ├── clients/              # Client module components
-│   │   │   ├── assets/               # Asset library components
-│   │   │   ├── campaigns/            # Campaign components
-│   │   │   ├── calendar/             # Content calendar components
-│   │   │   ├── designs/              # Design generator components
-│   │   │   └── approvals/            # Approval workflow components
+│   │   ├── components/
+│   │   │   ├── ui/
+│   │   │   │   ├── button.tsx        # shadcn/ui Button
+│   │   │   │   ├── card.tsx          # shadcn/ui Card
+│   │   │   │   ├── input.tsx         # shadcn/ui Input
+│   │   │   │   ├── label.tsx         # shadcn/ui Label
+│   │   │   │   └── status-badge.tsx  # ✅ StatusBadge + ContentTypeBadge
+│   │   │   ├── layout/
+│   │   │   │   ├── Sidebar.tsx       # ✅ Sidebar with navigation
+│   │   │   │   └── Navbar.tsx        # ✅ Top navbar
+│   │   │   └── organization/
+│   │   │       └── InviteMember.tsx  # ✅ Invite form
 │   │   │
-│   │   ├── hooks/                    # Custom React hooks
-│   │   │   ├── useAuth.ts
-│   │   │   ├── useClients.ts
-│   │   │   └── ...
+│   │   ├── hooks/
+│   │   │   └── useAuth.ts            # ✅ Auth hook (login, register, logout)
 │   │   │
-│   │   ├── lib/                      # Utilities
-│   │   │   ├── api.ts                # API client
-│   │   │   ├── auth.ts               # Auth utilities
-│   │   │   └── utils.ts
+│   │   ├── lib/
+│   │   │   ├── api.ts                # ✅ Axios instance with interceptors
+│   │   │   ├── auth.ts               # ✅ Token helpers (localStorage)
+│   │   │   └── utils.ts              # cn() utility
 │   │   │
-│   │   ├── types/                    # TypeScript types
-│   │   │   ├── api.ts
-│   │   │   ├── client.ts
-│   │   │   └── ...
+│   │   ├── types/
+│   │   │   ├── api.ts                # ApiResponse<T>, PaginatedResponse<T>
+│   │   │   ├── auth.ts               # User, TokenResponse, LoginRequest
+│   │   │   ├── client.ts             # Client, BrandAsset
+│   │   │   ├── organization.ts       # Organization, TeamMember
+│   │   │   └── content-brief.ts      # ✅ ContentBrief, BriefSlide, Platform types
 │   │   │
-│   │   └── api/                      # API functions
+│   │   └── api/                      # API functions (axios-based)
 │   │       ├── auth.ts
+│   │       ├── organizations.ts
+│   │       ├── invitations.ts
 │   │       ├── clients.ts
-│   │       └── ...
+│   │       ├── assets.ts
+│   │       └── content-briefs.ts     # ✅ Phase 3
 │   │
 │   ├── public/                       # Static assets
 │   ├── components.json               # shadcn config
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json
 │   ├── package.json
-│   ├── Dockerfile
 │   └── .env.local.example
 │
-├── docker-compose.yml                # Development services
+├── docker-compose.yml                # PostgreSQL + Redis + MailHog
 ├── docker-compose.prod.yml           # Production services
 ├── .gitignore
 ├── .env.example                      # Root env template
 │
-├── PRD.md                           # Product Requirements
-├── DESIGN.md                        # Technical Design
-└── DEVELOPMENT.md                   # This file
+├── PRD.md                           # Product Requirements Document
+├── DEVELOPMENT.md                   # This file
+└── README.md                        # Project overview & setup guide
 ```
 
 ---
@@ -405,37 +417,41 @@ NEXT_PUBLIC_APP_NAME=AI Brand Workspace
 
 ---
 
-### Phase 3: Campaign & Calendar (Week 5-6)
+### Phase 3: Content Library (Week 5-6)
 
-**Focus:** Campaign management, Content calendar
+**Focus:** Content brief management, slides, brief library table
 
 #### Tasks
 
 | Day | Task | Details |
 |-----|------|---------|
-| 1-2 | Campaign CRUD (Backend) | Create, Read, Update, Delete |
-| 3-4 | Content items API | Content calendar endpoints |
-| 5-6 | Status workflow | State machine for content status |
-| 7-8 | Campaign UI | Campaign list, detail, forms |
-| 9-10 | Calendar UI | Calendar view, drag & drop |
-| 11-12 | Status workflow UI | Status badges, transitions |
-| 13 | Dashboard widgets | Upcoming content, stats |
-| 14 | Integration testing | Test campaign flow |
+| 1-2 | Content Brief CRUD (Backend) | Create, Read, Update, Delete + slides |
+| 3-4 | Content Brief slides API | Brief slide CRUD, inline update |
+| 5-6 | Status workflow | State machine for brief status |
+| 7-8 | Content Library UI | Table view with filters, create form |
+| 9-10 | Brief detail UI | Slides section, inline edit, status transitions |
+| 11-12 | Dashboard widgets | Upcoming briefs, stats |
+| 13 | Documentation update | PRD, DEVELOPMENT.md |
+| 14 | Integration testing | Test full content library flow |
 
 #### Deliverables
-- [x] Campaign CRUD API
-- [x] Content calendar API
-- [x] Status workflow (Draft → Published)
-- [x] Campaign management pages
-- [x] Content calendar page
+- [x] Content Brief CRUD API (with slides, status, platform)
+- [x] Brief Slides API (inline update per slide)
+- [x] Status workflow (draft → in_progress → generated → in_review → approved → published)
+- [x] Content Library table page (with filters: client, status)
+- [x] Brief detail page (with inline slide editing)
+- [x] Dashboard with real stats (clients, briefs, upcoming briefs)
+- [x] Platform support (Instagram, TikTok, Facebook, Twitter/X, LinkedIn)
 
 #### Evaluation Checklist
-- [ ] Can create, edit, delete campaigns
-- [ ] Can create content items
-- [ ] Status transitions work correctly
-- [ ] Calendar view displays correctly
-- [ ] Campaign linked to correct client
-- [ ] Content items linked to campaigns
+- [x] Can create, edit, delete content briefs
+- [x] Can create brief with slides (feed/story/carousel)
+- [x] Can edit slides inline
+- [x] Status transitions work correctly (validated only)
+- [x] Content Library table shows correct columns (nama, tipe, platform, tanggal, deadline, status)
+- [x] Brief linked to correct client
+- [x] Permission check (admin vs designer)
+- [x] Frontend builds successfully
 
 ---
 
@@ -460,12 +476,12 @@ NEXT_PUBLIC_APP_NAME=AI Brand Workspace
 | 21 | Credit display | Show balance, history |
 
 #### Deliverables
-- [x] AI Brand Memory system
-- [x] Single design generator API
-- [x] Carousel design generator API
-- [x] Credit system
-- [x] Design history
-- [x] Design generator UI
+- [ ] AI Brand Memory system
+- [ ] Single design generator API
+- [ ] Carousel design generator API
+- [ ] Credit system
+- [ ] Design history
+- [ ] Design generator UI
 
 #### Evaluation Checklist
 - [ ] Brand colors injected into prompt
@@ -775,6 +791,6 @@ docker-compose up -d
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** July 22, 2026
+**Document Version:** 1.1
+**Last Updated:** July 23, 2026
 **Author:** Engineering Team

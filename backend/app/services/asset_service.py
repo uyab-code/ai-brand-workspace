@@ -65,6 +65,14 @@ class AssetService:
         if not a: raise NotFoundException("Font", str(font_id))
         await self.db.delete(a); await self.db.commit()
 
+    async def remove_asset(self, client_id: UUID, asset_id: UUID, user_id: UUID):
+        client = await self._get_client(client_id)
+        await self.client_svc._check_permission(client.organization_id, user_id, "manage_assets")
+        r = await self.db.execute(select(BrandAsset).where(BrandAsset.id == asset_id, BrandAsset.client_id == client_id))
+        a = r.scalar_one_or_none()
+        if not a: raise NotFoundException("Asset", str(asset_id))
+        await self.db.delete(a); await self.db.commit()
+
     async def _get_client(self, cid: UUID) -> Client:
         r = await self.db.execute(select(Client).where(Client.id == cid))
         c = r.scalar_one_or_none()

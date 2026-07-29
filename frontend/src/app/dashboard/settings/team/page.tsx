@@ -59,7 +59,7 @@ export default function TeamSettingsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-gray-500">Loading...</p>
+        <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
       </div>
     )
   }
@@ -68,8 +68,8 @@ export default function TeamSettingsPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Team Settings</h1>
-          <p className="text-gray-500">Anda belum memiliki organization</p>
+          <h1 className="text-2xl font-bold text-foreground">Team Settings</h1>
+          <p className="text-muted-foreground">Anda belum memiliki organization</p>
         </div>
       </div>
     )
@@ -78,8 +78,8 @@ export default function TeamSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Team Settings</h1>
-        <p className="text-gray-500">Kelola anggota tim dan undang anggota baru</p>
+        <h1 className="text-2xl font-bold text-foreground">Team Settings</h1>
+        <p className="text-muted-foreground">Kelola anggota tim dan undang anggota baru</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -96,25 +96,25 @@ export default function TeamSettingsPage() {
           </CardHeader>
           <CardContent>
             {members.length === 0 ? (
-              <p className="text-gray-500 text-sm">Belum ada anggota tim</p>
+              <p className="text-muted-foreground text-sm">Belum ada anggota tim</p>
             ) : (
               <div className="space-y-3">
                 {members.map((member) => (
                   <div
                     key={member.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-background rounded-lg"
                   >
                     <div>
                       <p className="font-medium">{member.user_name || member.user_email}</p>
-                      <p className="text-sm text-gray-500">{member.user_email}</p>
+                      <p className="text-sm text-muted-foreground">{member.user_email}</p>
                     </div>
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded-full ${
                         member.role === "owner"
-                          ? "bg-purple-100 text-purple-800"
+                          ? "bg-accent text-primary"
                           : member.role === "admin"
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-gray-100 text-gray-800"
+                          ? "bg-muted text-foreground"
+                          : "bg-muted text-muted-foreground"
                       }`}
                     >
                       {member.role}

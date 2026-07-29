@@ -33,6 +33,10 @@ export const assetsApi = {
     const res = await api.delete(`/assets/${clientId}/fonts/${fontId}`)
     return res.data
   },
+  removeAsset: async (clientId: string, assetId: string): Promise<ApiResponse<{ message: string }>> => {
+    const res = await api.delete(`/assets/${clientId}/assets/${assetId}`)
+    return res.data
+  },
   updateColors: async (clientId: string, colors: string[]): Promise<ApiResponse<BrandAsset>> => {
     const res = await api.put(`/assets/${clientId}/colors`, { colors })
     return res.data

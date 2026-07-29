@@ -1,49 +1,39 @@
 "use client"
 
-import { useState } from "react"
+import { Bell, Menu, Search } from "lucide-react"
+import { Avatar } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/useAuth"
 
-export function Navbar() {
-  const { user, logout } = useAuth()
-  const [showDropdown, setShowDropdown] = useState(false)
+export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
+  const { user } = useAuth()
+  const userName = user?.name || "User"
 
   return (
-    <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
-      <div>
-        <h2 className="text-lg font-semibold text-gray-800">Dashboard</h2>
-      </div>
-      <div className="relative">
+    <header className="flex h-16 items-center justify-between border-b border-border bg-card px-4 lg:px-6">
+      <div className="flex items-center gap-4">
         <button
-          onClick={() => setShowDropdown(!showDropdown)}
-          className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100"
+          onClick={onMenuClick}
+          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground md:hidden"
         >
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-white font-medium">
-            {user?.name?.charAt(0).toUpperCase() || "U"}
-          </div>
-          <span className="text-sm font-medium text-gray-700">{user?.name || "User"}</span>
-          <svg
-            className="w-4 h-4 text-gray-500"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
+          <Menu className="h-5 w-5" />
         </button>
-        {showDropdown && (
-          <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
-            <div className="px-4 py-2 text-sm text-gray-700 border-b">
-              <p className="font-medium">{user?.name}</p>
-              <p className="text-gray-500">{user?.email}</p>
-            </div>
-            <button
-              onClick={logout}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-            >
-              Logout
-            </button>
-          </div>
-        )}
+        <div className="relative hidden w-[420px] lg:block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            className="h-10 w-full rounded-[10px] border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            placeholder="Search clients, briefs, assets..."
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-border text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Bell className="h-4 w-4" />
+        </button>
+        <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-card px-2">
+          <Avatar name={userName} className="h-7 w-7" />
+          <span className="hidden text-sm font-medium text-foreground sm:block">{userName}</span>
+        </div>
       </div>
     </header>
   )
