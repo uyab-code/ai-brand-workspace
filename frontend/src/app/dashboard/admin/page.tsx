@@ -92,7 +92,9 @@ export default function AdminPage() {
         {statCards.map(({ key, label, icon: Icon }) => (
           <Card key={key}>
             <CardContent className="p-4 text-center">
-              <Icon className="h-4 w-4 text-muted-foreground mx-auto mb-2" />
+              <div className={`w-8 h-8 rounded-md mx-auto mb-2 flex items-center justify-center ${key === "total_designs" || key === "total_credits_used" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary"}`}>
+                <Icon className="h-4 w-4" />
+              </div>
               <div className="text-2xl font-bold">{stats?.[key as keyof AdminStats] ?? 0}</div>
               <p className="text-xs text-muted-foreground">{label}</p>
             </CardContent>
@@ -124,7 +126,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {orgs.map((org) => (
-                    <tr key={org.id} className="border-b hover:bg-background/80 transition-colors">
+                    <tr key={org.id} className="border-b hover:bg-primary/5 even:bg-primary/[0.02] transition-colors">
                       <td className="py-2 px-3 font-medium">{org.name}</td>
                       <td className="py-2 px-3 text-muted-foreground text-xs">{org.owner_email}</td>
                       <td className="py-2 px-3 text-center">{org.member_count}</td>

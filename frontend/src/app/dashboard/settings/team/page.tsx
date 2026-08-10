@@ -78,8 +78,8 @@ export default function TeamSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Team Settings</h1>
-        <p className="text-muted-foreground">Kelola anggota tim dan undang anggota baru</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Team Settings</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Kelola anggota tim dan undang anggota baru</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -111,7 +111,7 @@ export default function TeamSettingsPage() {
                     <span
                       className={`px-2 py-1 text-xs font-medium rounded-full ${
                         member.role === "owner"
-                          ? "bg-accent text-primary"
+                          ? "bg-accent text-accent-foreground"
                           : member.role === "admin"
                           ? "bg-muted text-foreground"
                           : "bg-muted text-muted-foreground"

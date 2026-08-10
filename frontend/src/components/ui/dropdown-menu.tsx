@@ -51,7 +51,7 @@ export function DropdownMenuItem({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+        "flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent/10 hover:text-accent-foreground",
         danger && "text-destructive hover:bg-red-50 hover:text-destructive",
         className
       )}

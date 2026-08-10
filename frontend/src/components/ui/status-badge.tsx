@@ -7,13 +7,13 @@ const statusStyles: Record<ContentStatus, string> = {
   generated: "bg-blue-50 text-blue-700",
   in_review: "bg-yellow-50 text-yellow-700",
   approved: "bg-green-50 text-green-700",
-  published: "bg-accent text-primary",
+  published: "bg-accent text-accent-foreground",
 }
 
 const contentTypeStyles: Record<string, string> = {
-  feed: "bg-muted text-muted-foreground",
-  story: "bg-muted text-muted-foreground",
-  carousel: "bg-muted text-muted-foreground",
+  feed: "bg-primary/10 text-primary",
+  story: "bg-accent/10 text-accent",
+  carousel: "bg-indigo-100 text-indigo-700",
 }
 
 export function StatusBadge({

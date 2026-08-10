@@ -17,7 +17,7 @@ export function Avatar({
     .toUpperCase()
 
   return (
-    <div className={cn("h-8 w-8 overflow-hidden rounded-full bg-accent text-primary flex items-center justify-center text-xs font-semibold", className)}>
+    <div className={cn("h-8 w-8 overflow-hidden rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold", className)}>
       {src ? <img src={src} alt={name} className="h-full w-full object-cover" /> : initials}
     </div>
   )

@@ -5,7 +5,7 @@ type BadgeVariant = "neutral" | "primary" | "success" | "warning" | "danger" | "
 
 const badgeVariants: Record<BadgeVariant, string> = {
   neutral: "bg-muted text-muted-foreground",
-  primary: "bg-accent text-primary",
+  primary: "bg-accent text-accent-foreground",
   success: "bg-green-50 text-green-700",
   warning: "bg-yellow-50 text-yellow-700",
   danger: "bg-red-50 text-red-700",

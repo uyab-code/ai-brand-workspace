@@ -115,7 +115,7 @@ export default function ContentBriefsPage() {
                 <div>
                   <Label>Client</Label>
                   <select value={clientId} onChange={(e) => setClientId(e.target.value)}
-                    className="w-full h-10 rounded-[10px] border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" required>
+                    className="w-full h-10 rounded border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" required>
                     <option value="">Pilih client...</option>
                     {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -130,7 +130,7 @@ export default function ContentBriefsPage() {
                     setContentType(e.target.value)
                     if (e.target.value !== "carousel") setSlides([{ slide_title: "", brief_text: "", notes: "" }])
                   }}
-                    className="w-full h-10 rounded-[10px] border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    className="w-full h-10 rounded border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     <option value="feed">Feed</option>
                     <option value="story">Story</option>
                     <option value="carousel">Carousel</option>
@@ -139,7 +139,7 @@ export default function ContentBriefsPage() {
                 <div>
                   <Label>Platform</Label>
                   <select value={platform} onChange={(e) => setPlatform(e.target.value)}
-                    className="w-full h-10 rounded-[10px] border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                    className="w-full h-10 rounded border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="facebook">Facebook</option>
@@ -180,7 +180,7 @@ export default function ContentBriefsPage() {
                       <Input value={s.notes} onChange={(e) => updateSlide(i, "notes", e.target.value)}
                         placeholder="Catatan (opsional)" />
                     </div>
-                    <textarea className="w-full min-h-[60px] rounded-[10px] border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    <textarea className="w-full min-h-[60px] rounded border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       value={s.brief_text} onChange={(e) => updateSlide(i, "brief_text", e.target.value)}
                       placeholder="Brief/deskripsi desain..." required />
                   </div>
@@ -214,37 +214,37 @@ export default function ContentBriefsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-background">
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Nama Brief</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tipe</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Platform</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Dibuat</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Deadline</th>
-                  <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
+                <tr className="border-b bg-background/95 backdrop-blur">
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Nama Brief</th>
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Tipe</th>
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Platform</th>
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Dibuat</th>
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Deadline</th>
+                  <th className="text-left py-4 px-4 font-medium text-muted-foreground">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((b) => (
-                  <tr key={b.id} className="border-b transition-colors hover:bg-background/80 cursor-pointer" onClick={() => router.push(`/dashboard/content-briefs/${b.id}`)}>
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-foreground">{b.name}</div>
+                  <tr key={b.id} className="border-b transition-colors hover:bg-primary/5 even:bg-primary/[0.02] cursor-pointer" onClick={() => router.push(`/dashboard/content-briefs/${b.id}`)}>
+                    <td className="py-4 px-4">
+                      <div className="font-semibold text-foreground">{b.name}</div>
                       <div className="text-xs text-muted-foreground">{clientMap[b.client_id] || "Client..."} · {getSlideCountLabel(b)}</div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       <ContentTypeBadge type={b.content_type} />
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PLATFORM_BADGE_VARIANTS[b.platform as keyof typeof PLATFORM_BADGE_VARIANTS] || ""}`}>
                         {PLATFORM_LABELS[b.platform as keyof typeof PLATFORM_LABELS] || b.platform}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">
+                    <td className="py-4 px-4 text-muted-foreground text-xs">
                       {b.created_at ? new Date(b.created_at).toLocaleDateString("id-ID") : "-"}
                     </td>
-                    <td className="py-3 px-4 text-muted-foreground text-xs">
+                    <td className="py-4 px-4 text-muted-foreground text-xs">
                       {b.deadline_date ? new Date(b.deadline_date).toLocaleDateString("id-ID") : "-"}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-4 px-4">
                       <StatusBadge status={b.status as ContentStatus} />
                     </td>
                   </tr>

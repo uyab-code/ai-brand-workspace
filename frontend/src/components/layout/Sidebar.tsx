@@ -40,7 +40,7 @@ export function Sidebar({
   const items = isSuperadmin ? [...menuItems, adminItem] : menuItems
 
   return (
-    <aside className="flex w-[272px] min-h-screen flex-col border-r border-border bg-card">
+    <aside className="flex w-[272px] min-h-screen flex-col border-r border-border bg-card shadow-card">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
         <Link
@@ -79,10 +79,10 @@ export function Sidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex h-10 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
+                "flex h-10 items-center gap-3 rounded-full px-3 text-sm font-medium transition-colors",
                 active
                   ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  : "text-muted-foreground hover:bg-primary/5 hover:text-foreground"
               )}
             >
               <Icon

@@ -20,17 +20,17 @@ export function Navbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="relative hidden w-[420px] lg:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
-            className="h-10 w-full rounded-[10px] border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="h-10 w-full rounded border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             placeholder="Search clients, briefs, assets..."
           />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-border text-muted-foreground hover:bg-muted hover:text-foreground">
+        <button className="flex h-10 w-10 items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted hover:text-foreground">
           <Bell className="h-4 w-4" />
         </button>
-        <div className="flex h-10 items-center gap-2 rounded-[10px] border border-border bg-card px-2">
+        <div className="flex h-10 items-center gap-2 rounded border border-border bg-card px-2">
           <Avatar name={userName} className="h-7 w-7" />
           <span className="hidden text-sm font-medium text-foreground sm:block">{userName}</span>
         </div>

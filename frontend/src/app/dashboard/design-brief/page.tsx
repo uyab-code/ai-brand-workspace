@@ -174,8 +174,8 @@ export default function DesignBriefPage() {
             <option value="all">Assignee</option>
             {assignees.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
-          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-10 rounded-[10px] border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-10 rounded-[10px] border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-10 rounded border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+          <input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-10 rounded border border-input bg-card px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
           <Select value={sort} onChange={(event) => setSort(event.target.value)}>
             <option value="updated_desc">Last Updated</option>
             <option value="due_asc">Due Date</option>
@@ -246,7 +246,7 @@ export default function DesignBriefPage() {
                     <TableCell className="text-right">
                       <DropdownMenu
                         trigger={
-                          <span className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] text-muted-foreground hover:bg-muted hover:text-foreground">
+                          <span className="inline-flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground">
                             <MoreHorizontal className="h-4 w-4" />
                           </span>
                         }

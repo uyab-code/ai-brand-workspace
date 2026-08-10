@@ -48,7 +48,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               {
                 "bg-card text-foreground border border-border": toast.type === "success",
                 "bg-destructive text-destructive-foreground border border-destructive": toast.type === "error",
-                "bg-accent text-primary border border-border": toast.type === "info",
+                "bg-accent text-accent-foreground border border-border": toast.type === "info",
                 "bg-muted text-foreground border border-border": toast.type === "warning",
               }
             )}
