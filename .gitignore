@@ -53,3 +53,14 @@ frontend/public/uploads/
 !next.config.ts
 !components.json
 credentials/
+
+# Local design/dev docs (tidak di-push ke GitHub)
+design.md
+development_process.md
+development.md
+prd.md
+redesign_spec.md
+DESIGN.md
+DEVELOPMENT.md
+PRD.md
+REDESIGN_SPEC.md
