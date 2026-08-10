@@ -11,17 +11,17 @@ import {
   PLATFORM_LABELS,
   PLATFORM_BADGE_VARIANTS,
   CONTENT_TYPE_LABELS,
-  CONTENT_STATUS_LABELS,
   ContentStatus,
 } from "@/types/content-brief"
 import { GeneratedDesign } from "@/types/design"
 import { designsApi } from "@/api/designs"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { StatusBadge } from "@/components/ui/status-badge"
-import { Eye, EyeOff } from "lucide-react"
+import { StatusBadge, ContentTypeBadge } from "@/components/ui/status-badge"
+import { StatusStepper } from "@/components/brief/status-stepper"
+import { Eye, EyeOff, CalendarClock } from "lucide-react"
 
 function DesignCard({ design }: { design: GeneratedDesign }) {
   const [showPrompt, setShowPrompt] = useState(false)
@@ -32,7 +32,7 @@ function DesignCard({ design }: { design: GeneratedDesign }) {
         <img
           src={design.image_url}
           alt=""
-          className="w-28 h-28 object-cover rounded-md border"
+          className="w-28 h-28 object-cover rounded-lg border border-border shadow-card transition-all hover:shadow-modal"
           onError={(e) => {
             const t = e.target as HTMLImageElement
             t.src = "https://placehold.co/112x112?text=AI&font=montserrat"
@@ -62,13 +62,13 @@ function DesignCard({ design }: { design: GeneratedDesign }) {
   )
 }
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  draft: ["in_progress"],
-  in_progress: ["generated"],
-  generated: ["in_review"],
-  in_review: ["approved", "draft"],
-  approved: ["published"],
-  published: [],
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="mt-1 text-sm text-foreground">{children}</div>
+    </div>
+  )
 }
 
 export default function BriefDetailPage() {
@@ -92,7 +92,7 @@ export default function BriefDetailPage() {
   // Generate image state
   const [slideDesigns, setSlideDesigns] = useState<Record<string, GeneratedDesign[]>>({})
   const [slidePrompts, setSlidePrompts] = useState<Record<string, string>>({})
-  const [generatingSlideId, setGeneratingSlideId] = useState<string | null>(null)
+  const [generatingSlides, setGeneratingSlides] = useState<Set<string>>(new Set())
 
   useEffect(() => { fetchData() }, [])
 
@@ -170,7 +170,7 @@ export default function BriefDetailPage() {
   const generateDesign = async (slideId: string) => {
     const prompt = slidePrompts[slideId]?.trim()
     if (!prompt || !brief) return
-    setGeneratingSlideId(slideId)
+    setGeneratingSlides((prev) => new Set(prev).add(slideId))
     try {
       const r = await designsApi.generate(
         brief.client_id,
@@ -180,14 +180,20 @@ export default function BriefDetailPage() {
         slideId
       )
       if (r.success) {
-        const existing = slideDesigns[slideId] || []
-        setSlideDesigns({ ...slideDesigns, [slideId]: [r.data, ...existing] })
-        setSlidePrompts({ ...slidePrompts, [slideId]: "" })
+        setSlideDesigns((prev) => {
+          const existing = prev[slideId] || []
+          return { ...prev, [slideId]: [r.data, ...existing] }
+        })
+        setSlidePrompts((prev) => ({ ...prev, [slideId]: "" }))
       }
     } catch (e) {
       // silent
     }
-    setGeneratingSlideId(null)
+    setGeneratingSlides((prev) => {
+      const next = new Set(prev)
+      next.delete(slideId)
+      return next
+    })
   }
 
   if (loading) return (
@@ -200,181 +206,199 @@ export default function BriefDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
           <Link href="/dashboard/content-briefs">
             <Button variant="ghost" size="sm">← Kembali</Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{brief.name}</h1>
-            <p className="text-muted-foreground">{clientName}</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{brief.name}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{clientName}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <ContentTypeBadge type={brief.content_type} />
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PLATFORM_BADGE_VARIANTS[brief.platform as keyof typeof PLATFORM_BADGE_VARIANTS]}`}>
+                {PLATFORM_LABELS[brief.platform as keyof typeof PLATFORM_LABELS]}
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {!editing && (
-            <>
-              <Button variant="outline" onClick={() => setEditing(true)}>Edit</Button>
-              <Button variant="outline" className="text-red-600" onClick={handleDelete}>Hapus</Button>
-            </>
-          )}
-        </div>
+        {!editing && (
+          <Button variant="outline" className="text-red-600 shrink-0" onClick={handleDelete}>Hapus</Button>
+        )}
       </div>
 
-      {/* Status & transitions */}
-      <div className="flex items-center gap-3">
-        <StatusBadge status={brief.status as ContentStatus} />
-        {VALID_TRANSITIONS[brief.status]?.map((nextStatus) => (
-          <Button key={nextStatus} variant="outline" size="sm"
-            onClick={() => updateStatus(nextStatus)}>
-            → {CONTENT_STATUS_LABELS[nextStatus as ContentStatus]}
-          </Button>
-        ))}
-      </div>
-
-      {/* Brief Info */}
-      <Card>
-        <CardHeader><CardTitle>Brief Info</CardTitle></CardHeader>
-        <CardContent>
-          {editing ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label>Nama Brief</Label>
-                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-              </div>
-              <div>
-                <Label>Platform</Label>
-                <select value={editPlatform} onChange={(e) => setEditPlatform(e.target.value)}
-                  className="w-full h-10 rounded-[10px] border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                  <option value="instagram">Instagram</option>
-                  <option value="tiktok">TikTok</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="twitter">Twitter/X</option>
-                  <option value="linkedin">LinkedIn</option>
-                </select>
-              </div>
-              <div>
-                <Label>Deadline</Label>
-                <Input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} />
-              </div>
-            </div>
+      {/* Split layout — content (slides) left, info/status panel right */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+        {/* Left: Slides */}
+        <div>
+          <h2 className="text-lg font-semibold mb-3">
+            {brief.content_type === "carousel" ? `Slides (${slides.length})` : "Brief Detail"}
+          </h2>
+          {slides.length === 0 ? (
+            <Card><CardContent className="p-6 text-center text-muted-foreground">Tidak ada slide</CardContent></Card>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <span className="font-medium text-muted-foreground">Nama</span>
-                <p>{brief.name}</p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Tipe</span>
-                <p>{CONTENT_TYPE_LABELS[brief.content_type as keyof typeof CONTENT_TYPE_LABELS]}</p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Platform</span>
-                <p className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${PLATFORM_BADGE_VARIANTS[brief.platform as keyof typeof PLATFORM_BADGE_VARIANTS]}`}>
-                  {PLATFORM_LABELS[brief.platform as keyof typeof PLATFORM_LABELS]}
-                </p>
-              </div>
-              <div>
-                <span className="font-medium text-muted-foreground">Deadline</span>
-                <p>{brief.deadline_date ? new Date(brief.deadline_date).toLocaleDateString("id-ID") : "-"}</p>
-              </div>
-            </div>
-          )}
-          {editing && (
-            <div className="flex gap-2 mt-4">
-              <Button onClick={saveBrief}>Simpan</Button>
-              <Button variant="outline" onClick={() => { setEditing(false); setEditName(brief.name); setEditPlatform(brief.platform); setEditDeadline(brief.deadline_date || "") }}>Batal</Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Slides */}
-      <div>
-        <h2 className="text-lg font-semibold mb-3">
-          {brief.content_type === "carousel" ? `Slides (${slides.length})` : "Brief Detail"}
-        </h2>
-        {slides.length === 0 ? (
-          <Card><CardContent className="p-6 text-center text-muted-foreground">Tidak ada slide</CardContent></Card>
-        ) : (
-          <div className="space-y-3">
-            {slides.map((s, i) => (
-              <Card key={s.id}>
-                <CardContent className="p-4">
-                  {editingSlideId === s.id ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <Label>Judul Slide</Label>
-                          <Input value={slideEditTitle} onChange={(e) => setSlideEditTitle(e.target.value)} />
+            <div className="space-y-3">
+              {slides.map((s, i) => (
+                <Card key={s.id}>
+                  <CardContent className="p-4">
+                    {editingSlideId === s.id ? (
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <Label>Judul Slide</Label>
+                            <Input value={slideEditTitle} onChange={(e) => setSlideEditTitle(e.target.value)} />
+                          </div>
+                          <div>
+                            <Label>Catatan</Label>
+                            <Input value={slideEditNotes} onChange={(e) => setSlideEditNotes(e.target.value)} placeholder="Catatan opsional" />
+                          </div>
                         </div>
                         <div>
-                          <Label>Catatan</Label>
-                          <Input value={slideEditNotes} onChange={(e) => setSlideEditNotes(e.target.value)} placeholder="Catatan opsional" />
+                          <Label>Brief</Label>
+                          <textarea className="w-full min-h-[80px] rounded border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            value={slideEditBrief} onChange={(e) => setSlideEditBrief(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={() => saveSlide(s.id)}>Simpan</Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingSlideId(null)}>Batal</Button>
                         </div>
                       </div>
-                      <div>
-                        <Label>Brief</Label>
-                        <textarea className="w-full min-h-[80px] rounded-[10px] border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          value={slideEditBrief} onChange={(e) => setSlideEditBrief(e.target.value)} />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => saveSlide(s.id)}>Simpan</Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingSlideId(null)}>Batal</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {brief.content_type === "carousel" ? `Slide ${s.slide_number}` : "Brief"}
-                          </span>
-                          <h3 className="font-medium">{s.slide_title}</h3>
+                    ) : (
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {brief.content_type === "carousel" ? `Slide ${s.slide_number}` : "Brief"}
+                            </span>
+                            <h3 className="font-medium">{s.slide_title}</h3>
+                          </div>
+                          <p className="text-sm text-foreground whitespace-pre-wrap">{s.brief_text}</p>
+                          {s.notes && (
+                            <p className="text-xs text-muted-foreground mt-1">📝 {s.notes}</p>
+                          )}
                         </div>
-                        <p className="text-sm text-foreground whitespace-pre-wrap">{s.brief_text}</p>
-                        {s.notes && (
-                          <p className="text-xs text-muted-foreground mt-1">📝 {s.notes}</p>
-                        )}
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => startSlideEdit(s)}>✏️</Button>
-                    </div>
-                  )}
-
-                  {/* Generate AI Image Section */}
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="flex gap-2">
-                      <textarea
-                        className="flex-1 min-h-[40px] rounded-[10px] border border-input bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        placeholder="Prompt untuk generate desain slide ini..."
-                        value={slidePrompts[s.id] || ""}
-                        onChange={(e) =>
-                          setSlidePrompts({ ...slidePrompts, [s.id]: e.target.value })
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        className="self-start shrink-0"
-                        onClick={() => generateDesign(s.id)}
-                        disabled={generatingSlideId === s.id || !slidePrompts[s.id]?.trim()}
-                      >
-                        {generatingSlideId === s.id ? "..." : "Generate"}
-                      </Button>
-                    </div>
-
-                    {/* Generated designs */}
-                    {slideDesigns[s.id] && slideDesigns[s.id].length > 0 && (
-                      <div className="mt-3 space-y-3">
-                        {slideDesigns[s.id].map((d) => (
-                          <DesignCard key={d.id} design={d} />
-                        ))}
+                        <Button variant="ghost" size="sm" onClick={() => startSlideEdit(s)}>✏️</Button>
                       </div>
                     )}
+
+                    {/* Generate AI Image Section */}
+                    <div className="mt-4 pt-4 border-t border-border">
+                      <div className="flex gap-2">
+                        <textarea
+                          className="flex-1 min-h-[40px] rounded border border-input bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          placeholder="Prompt untuk generate desain slide ini..."
+                          value={slidePrompts[s.id] || ""}
+                          onChange={(e) =>
+                            setSlidePrompts({ ...slidePrompts, [s.id]: e.target.value })
+                          }
+                        />
+                        <Button
+                          size="sm"
+                          className="self-start shrink-0"
+                          onClick={() => generateDesign(s.id)}
+                          disabled={generatingSlides.has(s.id) || !slidePrompts[s.id]?.trim()}
+                        >
+                          {generatingSlides.has(s.id) ? "..." : "Generate"}
+                        </Button>
+                      </div>
+
+                      {/* Generated designs */}
+                      {slideDesigns[s.id] && slideDesigns[s.id].length > 0 && (
+                        <div className="mt-3 space-y-3">
+                          {slideDesigns[s.id].map((d) => (
+                            <DesignCard key={d.id} design={d} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Header + Info + Status — sticky */}
+        <div className="lg:sticky lg:top-6">
+          <Card>
+            {/* Header brief */}
+            <div className="p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight text-foreground">{brief.name}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{clientName}</p>
+                </div>
+                {!editing && (
+                  <Button variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>Edit</Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <StatusBadge status={brief.status as ContentStatus} />
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PLATFORM_BADGE_VARIANTS[brief.platform as keyof typeof PLATFORM_BADGE_VARIANTS]}`}>
+                  {PLATFORM_LABELS[brief.platform as keyof typeof PLATFORM_LABELS]}
+                </span>
+              </div>
+            </div>
+
+            {/* Brief Info */}
+            <div className="border-t border-border p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-3">Informasi</h3>
+              {editing ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label>Nama Brief</Label>
+                    <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+                  <div>
+                    <Label>Platform</Label>
+                    <select value={editPlatform} onChange={(e) => setEditPlatform(e.target.value)}
+                      className="w-full h-10 rounded border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                      <option value="instagram">Instagram</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="twitter">Twitter/X</option>
+                      <option value="linkedin">LinkedIn</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>Deadline</Label>
+                    <Input type="date" value={editDeadline} onChange={(e) => setEditDeadline(e.target.value)} />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" onClick={saveBrief}>Simpan</Button>
+                    <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditName(brief.name); setEditPlatform(brief.platform); setEditDeadline(brief.deadline_date || "") }}>Batal</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <InfoRow label="Tipe">
+                    <ContentTypeBadge type={brief.content_type} />
+                  </InfoRow>
+                  <InfoRow label="Platform">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PLATFORM_BADGE_VARIANTS[brief.platform as keyof typeof PLATFORM_BADGE_VARIANTS]}`}>
+                      {PLATFORM_LABELS[brief.platform as keyof typeof PLATFORM_LABELS]}
+                    </span>
+                  </InfoRow>
+                  <InfoRow label="Deadline">
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                      {brief.deadline_date ? new Date(brief.deadline_date).toLocaleDateString("id-ID") : "-"}
+                    </span>
+                  </InfoRow>
+                </div>
+              )}
+            </div>
+
+            {/* Status workflow */}
+            <div className="border-t border-border p-5">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Status Workflow</h3>
+              <StatusStepper
+                currentStatus={brief.status as ContentStatus}
+                onTransition={updateStatus}
+              />
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   )

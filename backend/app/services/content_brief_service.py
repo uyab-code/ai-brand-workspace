@@ -19,6 +19,7 @@ from app.schemas.content_brief import (
     UpdateBriefRequest,
     UpdateSlideRequest,
 )
+from app.services.activity_service import ActivityService
 
 VALID_STATUS_TRANSITIONS = {
     "draft": ["in_progress"],
@@ -63,6 +64,7 @@ class ContentBriefService:
 
         await self.db.commit()
         await self.db.refresh(brief)
+        await self._log_activity("create", brief, org_id, user_id)
         return await self._get_brief_response(brief.id)
 
     async def list_briefs(self, org_id: UUID, user_id: UUID) -> List[ContentBriefResponse]:
@@ -94,20 +96,26 @@ class ContentBriefService:
             brief.deadline_date = data.deadline_date
 
         await self.db.commit()
+        await self._log_activity("update", brief, brief.organization_id, user_id)
         return await self._get_brief_response(brief.id)
 
     async def update_status(self, brief_id: UUID, new_status: str, user_id: UUID) -> ContentBriefResponse:
         brief = await self._get_brief(brief_id)
         await self._check_permission(brief.organization_id, user_id, "update_content")
 
-        allowed = VALID_STATUS_TRANSITIONS.get(brief.status, [])
-        if new_status not in allowed:
-            raise ValidationException(
-                f"Invalid status transition: {brief.status} → {new_status}. Allowed: {', '.join(allowed) if allowed else 'none'}"
-            )
+        if new_status not in VALID_STATUS_TRANSITIONS:
+            raise ValidationException(f"Invalid status: {new_status}")
 
+        old_status = brief.status
         brief.status = new_status
         await self.db.commit()
+        await self._log_activity(
+            "status_change",
+            brief,
+            brief.organization_id,
+            user_id,
+            details=f"{old_status} → {new_status}",
+        )
         return await self._get_brief_response(brief_id)
 
     async def update_slide(self, slide_id: UUID, data: UpdateSlideRequest, user_id: UUID) -> BriefSlideResponse:
@@ -124,6 +132,13 @@ class ContentBriefService:
 
         await self.db.commit()
         await self.db.refresh(slide)
+        await self._log_activity(
+            "update",
+            brief,
+            brief.organization_id,
+            user_id,
+            details=f"slide '{slide.slide_title}'",
+        )
         return BriefSlideResponse(
             id=str(slide.id),
             slide_title=slide.slide_title,
@@ -135,6 +150,7 @@ class ContentBriefService:
     async def delete_brief(self, brief_id: UUID, user_id: UUID):
         brief = await self._get_brief(brief_id)
         await self._check_permission(brief.organization_id, user_id, "delete_content")
+        await self._log_activity("delete", brief, brief.organization_id, user_id)
         await self.db.delete(brief)
         await self.db.commit()
 
@@ -178,6 +194,24 @@ class ContentBriefService:
         }
 
     # --- Private helpers ---
+
+    async def _log_activity(
+        self,
+        action: str,
+        brief: ContentBrief,
+        org_id: UUID,
+        user_id: UUID,
+        details: str | None = None,
+    ):
+        await ActivityService(self.db).log(
+            organization_id=org_id,
+            user_id=user_id,
+            action=action,
+            entity_type="content_brief",
+            entity_id=brief.id,
+            entity_name=brief.name,
+            details=details,
+        )
 
     async def _get_brief(self, brief_id: UUID) -> ContentBrief:
         result = await self.db.execute(

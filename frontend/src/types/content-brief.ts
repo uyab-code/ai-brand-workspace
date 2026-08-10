@@ -38,11 +38,11 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
 }
 
 export const PLATFORM_BADGE_VARIANTS: Record<Platform, string> = {
-  instagram: "bg-purple-100 text-purple-700",
-  tiktok: "bg-muted text-muted-foreground",
-  facebook: "bg-muted text-muted-foreground",
-  twitter: "bg-muted text-muted-foreground",
-  linkedin: "bg-muted text-muted-foreground",
+  instagram: "bg-pink-100 text-pink-700",
+  tiktok: "bg-neutral-900 text-white",
+  facebook: "bg-blue-100 text-blue-700",
+  twitter: "bg-slate-100 text-slate-700",
+  linkedin: "bg-cyan-100 text-cyan-700",
 }
 
 export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
