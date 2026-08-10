@@ -69,11 +69,11 @@ export default function DesignDetailPage() {
         {/* Image */}
         <Card>
           <CardContent className="p-4">
-            <div className="aspect-square bg-muted rounded-lg overflow-hidden">
+            <div className="bg-muted rounded-lg overflow-hidden">
               <img
                 src={design.image_url}
                 alt={design.prompt_used.slice(0, 50)}
-                className="w-full h-full object-cover"
+                className="w-full h-auto"
                 onError={(e) => {
                   const t = e.target as HTMLImageElement
                   t.src = "https://placehold.co/600x600?text=AI+Design&font=montserrat"
@@ -81,8 +81,19 @@ export default function DesignDetailPage() {
               />
             </div>
             <div className="flex gap-2 mt-3">
-              <Button variant="outline" size="sm" className="flex-1"
-                onClick={() => window.open(design.image_url, "_blank")}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  const a = document.createElement("a")
+                  a.href = design.image_url
+                  a.download = `design-${design.id}.png`
+                  document.body.appendChild(a)
+                  a.click()
+                  a.remove()
+                }}
+              >
                 Download
               </Button>
             </div>
@@ -123,7 +134,7 @@ export default function DesignDetailPage() {
             <Button variant="outline" size="sm" onClick={copyPrompt}>Copy</Button>
           </CardHeader>
           <CardContent>
-            <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded-md">
+            <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
               {userPrompt}
             </pre>
           </CardContent>

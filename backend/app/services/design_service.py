@@ -1,7 +1,8 @@
+import asyncio
 from typing import List
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,6 +21,7 @@ from app.schemas.design import (
 )
 from app.services.ai_service import AIService
 from app.services.credit_service import CreditService
+from app.services.activity_service import ActivityService
 
 
 class DesignService:
@@ -47,7 +49,8 @@ class DesignService:
             content_type=data.content_type,
             platform=brand_context.get("platform", "instagram"),
         )
-        full_prompt = self.ai.elaborate_prompt(
+        full_prompt = await asyncio.to_thread(
+            self.ai.elaborate_prompt,
             user_prompt=structured_prompt,
             content_type=data.content_type,
             platform=brand_context.get("platform", "instagram"),
@@ -56,23 +59,37 @@ class DesignService:
         # Check and deduct credits
         await self.credits.deduct_credits(client.organization_id, 1)
 
-        # Call AI
-        image_url = self.ai.generate_image(full_prompt, data.content_type)
+        # Call AI (off the event loop — sync OpenAI client is blocking)
+        image_url = await asyncio.to_thread(self.ai.generate_image, full_prompt, data.content_type)
 
         # Save design
+        slide_uuid = UUID(data.slide_id) if data.slide_id else None
+        brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
+        version = await self._next_version(slide_uuid, brief_uuid, client.id)
+
         design = GeneratedDesign(
             client_id=client.id,
-            content_brief_id=UUID(data.content_brief_id) if data.content_brief_id else None,
-            slide_id=UUID(data.slide_id) if data.slide_id else None,
+            content_brief_id=brief_uuid,
+            slide_id=slide_uuid,
             image_url=image_url,
             prompt_used=full_prompt,
             content_type=data.content_type,
-            version=1,
+            version=version,
             credits_used=1,
         )
         self.db.add(design)
         await self.db.commit()
         await self.db.refresh(design)
+
+        await ActivityService(self.db).log(
+            organization_id=client.organization_id,
+            user_id=user_id,
+            action="generate",
+            entity_type="design",
+            entity_id=design.id,
+            entity_name=f"Design v{design.version}",
+            details=data.content_type,
+        )
 
         return self._to_response(design)
 
@@ -93,6 +110,9 @@ class DesignService:
         # Check and deduct credits for all slides
         await self.credits.deduct_credits(client.organization_id, n_slides)
 
+        brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
+        next_version = await self._next_version(None, brief_uuid, client.id)
+
         results = []
         for slide in data.slides:
             slide_context = {**brand_context, "slide_text": slide.prompt}
@@ -104,27 +124,43 @@ class DesignService:
                 content_type=slide.content_type,
                 platform=slide_context.get("platform", "instagram"),
             )
-            full_prompt = self.ai.elaborate_prompt(
+            full_prompt = await asyncio.to_thread(
+                self.ai.elaborate_prompt,
                 user_prompt=structured_prompt,
                 content_type=slide.content_type,
                 platform=slide_context.get("platform", "instagram"),
             )
-            image_url = self.ai.generate_image(full_prompt, slide.content_type)
+            image_url = await asyncio.to_thread(
+                self.ai.generate_image, full_prompt, slide.content_type
+            )
 
             design = GeneratedDesign(
                 client_id=client.id,
-                content_brief_id=UUID(data.content_brief_id) if data.content_brief_id else None,
+                content_brief_id=brief_uuid,
                 image_url=image_url,
                 prompt_used=full_prompt,
                 content_type=slide.content_type,
-                version=1,
+                version=next_version,
                 credits_used=1,
             )
+            next_version += 1
             self.db.add(design)
             await self.db.flush()
             results.append(self._to_response(design))
 
         await self.db.commit()
+
+        if results:
+            first = results[0]
+            await ActivityService(self.db).log(
+                organization_id=client.organization_id,
+                user_id=user_id,
+                action="generate",
+                entity_type="design",
+                entity_id=UUID(first.id),
+                entity_name=f"Generated {len(results)} designs",
+                details="carousel",
+            )
 
         return results
 
@@ -163,6 +199,15 @@ class DesignService:
         design = await self._get_design(design_id)
         client = await self._get_client(design.client_id)
         await self._check_permission(client.organization_id, user_id, "delete_content")
+        await ActivityService(self.db).log(
+            organization_id=client.organization_id,
+            user_id=user_id,
+            action="delete",
+            entity_type="design",
+            entity_id=design.id,
+            entity_name=f"Design v{design.version}",
+            details=design.content_type,
+        )
         await self.db.delete(design)
         await self.db.commit()
 
@@ -235,6 +280,25 @@ class DesignService:
                 )
 
         # --- Helpers ---
+
+    async def _next_version(
+        self, slide_id: UUID | None, brief_id: UUID | None, client_id: UUID
+    ) -> int:
+        """Next version number for a design, scoped slide → brief → client."""
+        if slide_id:
+            col = GeneratedDesign.slide_id
+            val = slide_id
+        elif brief_id:
+            col = GeneratedDesign.content_brief_id
+            val = brief_id
+        else:
+            col = GeneratedDesign.client_id
+            val = client_id
+        result = await self.db.execute(
+            select(func.max(GeneratedDesign.version)).where(col == val)
+        )
+        max_v = result.scalar()
+        return (max_v or 0) + 1
 
     async def _get_client(self, client_id: UUID) -> Client:
         result = await self.db.execute(select(Client).where(Client.id == client_id))

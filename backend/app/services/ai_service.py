@@ -1,4 +1,9 @@
+import base64
+import io
+import urllib.request
 from urllib.parse import quote
+
+from PIL import Image
 
 from app.config import get_settings
 
@@ -9,6 +14,31 @@ CONTENT_TYPE_SIZES = {
     "feed": (1024, 1024),
     "story": (1024, 1792),
     "carousel": (1024, 1024),
+}
+
+# Target aspect ratios for server-side crop (Pillow).
+# feed -> 4:5 (≈1080x1350), story -> 9:16 (≈1080x1920), carousel -> square (no crop).
+TARGET_RATIOS = {
+    "feed": (4, 5),
+    "story": (9, 16),
+    "carousel": None,
+}
+
+# Composition guidance appended to the image prompt so the model composes for the
+# FINAL frame. This way the server-side crop only trims margins, not the subject.
+COMPOSITION_NOTES = {
+    "feed": (
+        "IMPORTANT - FINAL FRAME 4:5 (1080x1350): Compose the image so the ENTIRE main subject and "
+        "all essential content fit fully inside the central 4:5 band (the middle ~80% vertically). "
+        "The top and bottom strips MUST contain only background, texture, or empty space - they will "
+        "be cropped away, so never put faces, key objects, or text there. Do NOT crop the subject."
+    ),
+    "story": (
+        "IMPORTANT - FINAL FRAME 9:16 (1080x1920): Compose the image so the ENTIRE main subject and "
+        "all essential content fit fully inside the central 9:16 column (the middle ~70% horizontally). "
+        "The left and right strips MUST contain only background, texture, or empty space - they will "
+        "be cropped away, so never put faces, key objects, or text there. Do NOT crop the subject."
+    ),
 }
 
 CONTENT_TYPE_SPECS = {
@@ -231,6 +261,11 @@ class AIService:
         """Generate a single image. Returns the image URL."""
         width, height = CONTENT_TYPE_SIZES.get(content_type, (1024, 1024))
 
+        # Compose for the final frame so the crop trims margins, not the subject.
+        note = self._aspect_composition_note(content_type)
+        if note:
+            prompt = f"{prompt}\n\n{note}"
+
         if self.provider == "pollinations":
             return self._generate_pollinations(prompt, width, height)
         elif self.provider == "openai":
@@ -262,25 +297,88 @@ class AIService:
                 n=1,
             )
             image = response.data[0]
-            if getattr(image, "url", None):
-                return image.url
-            if getattr(image, "b64_json", None):
-                return f"data:image/png;base64,{image.b64_json}"
+            url = getattr(image, "url", None)
+            b64 = getattr(image, "b64_json", None)
+            if not settings.IMAGE_CROP_ENABLED:
+                if url:
+                    return url
+                if b64:
+                    return f"data:image/png;base64,{b64}"
+            if url:
+                return self._crop_to_ratio(None, url, content_type)
+            if b64:
+                return self._crop_to_ratio(base64.b64decode(b64), None, content_type)
             return self._generate_pollinations(prompt, width, height)
         except Exception as e:
             print(f"[Image Generator] OpenAI error: {e}")
             return self._generate_pollinations(prompt, width, height)
 
+    def _fetch_bytes(self, url: str) -> bytes:
+        with urllib.request.urlopen(url, timeout=30) as resp:
+            return resp.read()
+
+    def _crop_to_ratio(self, image_data: bytes | None, url: str | None, content_type: str) -> str:
+        """Crop an image to the target aspect ratio for its content type.
+
+        Returns a PNG data-URL (base64) so the result is stored as a plain
+        ``image_url`` string, consistent with the rest of the app.
+        """
+        if not image_data and url:
+            image_data = self._fetch_bytes(url)
+        if not image_data:
+            return url or ""
+        ratio = TARGET_RATIOS.get(content_type)
+        if not ratio:
+            # No crop needed (e.g. carousel) — keep as data-URL.
+            return f"data:image/png;base64,{base64.b64encode(image_data).decode()}"
+        with Image.open(io.BytesIO(image_data)) as im:
+            w, h = im.size
+            target_w, target_h = ratio
+            crop_h = int(w * target_h / target_w)
+            if crop_h <= h:
+                top = (h - crop_h) // 2
+                box = (0, top, w, top + crop_h)
+            else:
+                crop_w = int(h * target_w / target_h)
+                left = (w - crop_w) // 2
+                box = (left, 0, left + crop_w, h)
+            im2 = im.crop(box)
+            buf = io.BytesIO()
+            im2.save(buf, format="PNG")
+            return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
     def _openai_size(self, model: str, content_type: str, width: int, height: int) -> str:
         if model in ("gpt-image-1", "gpt-image-2"):
             if content_type == "story":
                 return "1024x1536"
-            return "1024x1024"
+            if content_type == "feed" and settings.IMAGE_CROP_ENABLED:
+                return "1024x1536"  # portrait 2:3, crop ke 4:5 di bawah
+            return "1024x1024"  # carousel (atau feed saat crop nonaktif)
         return f"{width}x{height}" if width != height else "1024x1024"
+
+    def _aspect_composition_note(self, content_type: str) -> str:
+        """Composition guidance so the crop only trims margins, not the subject."""
+        if not settings.IMAGE_CROP_ENABLED:
+            return ""
+        return COMPOSITION_NOTES.get(content_type, "")
+
+    # (aspect_ratio, canvas) of the FINAL frame when crop is enabled.
+    ASPECT_OVERRIDES = {
+        "feed": ("4:5 portrait", "4:5 (1080x1350)"),
+        "story": ("9:16 vertical", "9:16 (1080x1920)"),
+    }
+
+    def _aspect_spec(self, content_type: str) -> tuple[str, str]:
+        """(aspect_ratio, canvas) of the FINAL frame when crop is enabled."""
+        if settings.IMAGE_CROP_ENABLED and content_type in self.ASPECT_OVERRIDES:
+            return self.ASPECT_OVERRIDES[content_type]
+        spec = CONTENT_TYPE_SPECS.get(content_type, CONTENT_TYPE_SPECS["feed"])
+        return spec["aspect_ratio"], spec["canvas"]
 
     def _content_output_spec(self, content_type: str, platform: str) -> dict:
         spec = CONTENT_TYPE_SPECS.get(content_type, CONTENT_TYPE_SPECS["feed"]).copy()
         spec["format"] = f"{platform.title()} {spec['format'].split(' ', 1)[-1]}"
+        spec["aspect_ratio"], spec["canvas"] = self._aspect_spec(content_type)
         return spec
 
     def _format_section(self, title: str, value: str | list[str]) -> str:

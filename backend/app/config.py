@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-image-1"
     OPENAI_IMAGE_QUALITY: str = "low"
+    IMAGE_CROP_ENABLED: bool = True  # crop ke 4:5 (feed) & 9:16 (story); set False untuk nonaktif
 
     # Design Director (AI prompt elaborator)
     AI_TEXT_PROVIDER: str = "gemini"  # "gemini" (free) or "openai"

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException, ValidationException
@@ -30,12 +30,17 @@ class CreditService:
 
     async def deduct_credits(self, org_id: UUID, amount: int = 1) -> Credit:
         credit = await self.ensure_credits(org_id)
-        if credit.balance < amount:
+        # Atomic guarded UPDATE — safe under concurrent deductions (no lost update / double-spend).
+        result = await self.db.execute(
+            update(Credit)
+            .where(Credit.organization_id == org_id, Credit.balance >= amount)
+            .values(balance=Credit.balance - amount, used=Credit.used + amount)
+        )
+        if result.rowcount == 0:
+            await self.db.refresh(credit)
             raise ValidationException(
                 f"Insufficient credits. Balance: {credit.balance}, required: {amount}"
             )
-        credit.balance -= amount
-        credit.used += amount
         await self.db.commit()
         await self.db.refresh(credit)
         return credit
