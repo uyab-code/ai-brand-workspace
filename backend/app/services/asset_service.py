@@ -1,11 +1,16 @@
+import os
 from typing import List
 from uuid import UUID
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.config import get_settings
 from app.core.exceptions import NotFoundException
 from app.models.client import BrandAsset, Client
 from app.schemas.asset import AssetResponse, BrandColorsRequest, BrandFontRequest, BrandStyleRequest
 from app.services.client_service import ClientService
+
+settings = get_settings()
 
 
 class AssetService:
@@ -33,11 +38,39 @@ class AssetService:
         await self.db.commit(); await self.db.refresh(asset)
         return self._resp(asset)
 
+    async def upload_logo(self, client_id: UUID, file: UploadFile, user_id: UUID) -> AssetResponse:
+        """Simpan file logo client ke disk lokal dan simpan URL-nya."""
+        client = await self._get_client(client_id)
+        await self.client_svc._check_permission(client.organization_id, user_id, "manage_assets")
+
+        # Validasi tipe & ukuran
+        if not (file.content_type or "").startswith("image/"):
+            raise HTTPException(status_code=400, detail="File harus berupa gambar (image/*)")
+        data = await file.read()
+        max_bytes = settings.UPLOAD_MAX_SIZE_MB * 1024 * 1024
+        if len(data) > max_bytes:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File terlalu besar — maksimal {settings.UPLOAD_MAX_SIZE_MB}MB",
+            )
+        if not data:
+            raise HTTPException(status_code=400, detail="File kosong")
+
+        # Tulis ke disk: uploads/{client_id}/logo.png
+        rel = os.path.join(str(client_id), "logo.png")
+        dest = os.path.join(settings.UPLOAD_DIR, rel)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(data)
+
+        file_url = f"/uploads/{client_id}/logo.png"
+        return await self.add_file_asset(client_id, "logo", file_url, user_id)
+
     async def update_brand_colors(self, client_id: UUID, data: BrandColorsRequest, user_id: UUID) -> AssetResponse:
         client = await self._get_client(client_id)
         await self.client_svc._check_permission(client.organization_id, user_id, "manage_assets")
         asset = await self._get_or_create_meta(client_id)
-        asset.brand_colors = {"colors": data.colors}
+        asset.brand_colors = {"colors": [{"role": c.role, "hex": c.hex} for c in data.colors]}
         await self.db.commit(); await self.db.refresh(asset)
         return self._resp(asset)
 

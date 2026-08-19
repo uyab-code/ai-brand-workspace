@@ -4,7 +4,7 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { clientsApi } from "@/api/clients"
 import { assetsApi } from "@/api/assets"
-import { Client, BrandAsset } from "@/types/client"
+import { Client, BrandAsset, BrandColor, ColorRole } from "@/types/client"
 import { PageHeader } from "@/components/ui/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,13 +31,35 @@ function ClientDetailContent() {
   const [editDesc, setEditDesc] = useState("")
   const [fontName, setFontName] = useState("")
   const [fontType, setFontType] = useState("primary")
-  const [colors, setColors] = useState("")
+  const [colorList, setColorList] = useState<BrandColor[]>([])
   const [style, setStyle] = useState("")
   const router = useRouter()
+
+  const ROLE_LABELS: Record<ColorRole, string> = { primary: "Primer", secondary: "Sekunder", accent: "Aksen" }
+  const ROLE_BADGE: Record<ColorRole, string> = {
+    primary: "bg-primary/10 text-primary",
+    secondary: "bg-muted text-muted-foreground",
+    accent: "bg-accent/10 text-accent",
+  }
+
+  // Normalize legacy data (["#hex", ...]) ke {role, hex}; role posisional 1→primary, 2→secondary, 3+→accent
+  const normalizeColors = (raw: unknown[]): BrandColor[] =>
+    raw.map((c, i) => {
+      if (typeof c === "string") {
+        const role = (["primary", "secondary", "accent"][i] ?? "accent") as ColorRole
+        return { role, hex: c }
+      }
+      const o = c as { role?: string; hex?: string }
+      return { role: (o.role as ColorRole) || "primary", hex: o.hex || "#000000" }
+    })
   const [uploading, setUploading] = useState<string | null>(null)
   const logoRef = useRef<HTMLInputElement>(null)
   const guidelineRef = useRef<HTMLInputElement>(null)
   const referenceRef = useRef<HTMLInputElement>(null)
+
+  // File upload disimpan di backend origin (/uploads/...), jadi perlu prefix API origin
+  const apiOrigin = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/\/api\/v1\/?$/, "")
+  const assetUrl = (p: string | null | undefined) => (p?.startsWith("/") ? `${apiOrigin}${p}` : p || "")
 
   useEffect(() => { fetchData() }, [])
   const fetchData = async () => {
@@ -58,26 +80,26 @@ function ClientDetailContent() {
   const startEdit = () => {
     setEditName(client?.name || "")
     setEditDesc(client?.description || "")
-    setColors(ca?.brand_colors?.colors?.join(", ") || "")
+    setColorList(ca?.brand_colors?.colors?.length ? normalizeColors(ca.brand_colors.colors) : [])
     setStyle(sa?.brand_style || "")
     setEditing(true)
   }
 
   const saveAll = async () => {
     try {
-      if (colors) {
-        const colorArr = colors.split(",").map(x => x.trim()).filter(Boolean)
-        const hexRegex = /^#[0-9A-Fa-f]{6}$/
-        const invalid = colorArr.find(c => !hexRegex.test(c))
-        if (invalid) {
-          addToast(`Format hex tidak valid: ${invalid} (contoh: #FF0000)`, "error")
-          return
-        }
+      const hexRegex = /^#[0-9A-Fa-f]{6}$/
+      const invalid = colorList.find(c => !hexRegex.test(c.hex))
+      if (invalid) {
+        addToast(`Format hex tidak valid: ${invalid.hex} (contoh: #FF0000)`, "error")
+        return
+      }
+      if (!colorList.some(c => c.role === "primary")) {
+        addToast("Minimal satu warna Primer wajib ada", "error")
+        return
       }
       await clientsApi.update(clientId, { name: editName, description: editDesc })
-      if (colors) {
-        const c = colors.split(",").map(x => x.trim()).filter(Boolean)
-        await assetsApi.updateColors(clientId, c)
+      if (colorList.length > 0) {
+        await assetsApi.updateColors(clientId, colorList)
       }
       if (style) await assetsApi.updateStyle(clientId, style)
       await fetchData()
@@ -216,7 +238,7 @@ function ClientDetailContent() {
             <div className="p-6">
               <div className="flex flex-col items-center text-center gap-4">
                 {logo?.file_url ? (
-                  <img src={logo.file_url} alt="Logo" className="w-28 h-28 rounded-lg object-cover border border-border" />
+                  <img src={assetUrl(logo.file_url)} alt="Logo" className="w-28 h-28 rounded-lg object-cover border border-border" />
                 ) : (
                   <div className="w-28 h-28 rounded-lg bg-muted flex flex-col items-center justify-center">
                     <span className="text-3xl font-bold text-foreground/60">{initials}</span>
@@ -277,16 +299,71 @@ function ClientDetailContent() {
           <div className="bg-card rounded-lg border border-border shadow-card p-6">
             {sectionHeader(<Palette className="h-4 w-4 text-muted-foreground" />, "Brand Colors")}
             {editing ? (
-              <div className="space-y-2">
-                <Label>Hex codes (pisahkan koma)</Label>
-                <Input value={colors} onChange={e => setColors(e.target.value)} placeholder="#FF0000, #00FF00, #0000FF" />
+              <div className="space-y-3">
+                {colorList.length === 0 && (
+                  <p className="text-sm text-muted-foreground">Belum ada warna — tambahkan di bawah.</p>
+                )}
+                <div className="space-y-2">
+                  {colorList.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={/^#[0-9A-Fa-f]{6}$/.test(c.hex) ? c.hex : "#000000"}
+                        onChange={e => {
+                          const next = [...colorList]
+                          next[i] = { ...next[i], hex: e.target.value.toUpperCase() }
+                          setColorList(next)
+                        }}
+                        className="w-9 h-9 rounded border border-input bg-card shrink-0 cursor-pointer"
+                      />
+                      <Input
+                        value={c.hex}
+                        onChange={e => {
+                          const next = [...colorList]
+                          next[i] = { ...next[i], hex: e.target.value }
+                          setColorList(next)
+                        }}
+                        placeholder="#FF0000"
+                        className="flex-1 font-mono"
+                      />
+                      <select
+                        value={c.role}
+                        onChange={e => {
+                          const next = [...colorList]
+                          next[i] = { ...next[i], role: e.target.value as ColorRole }
+                          setColorList(next)
+                        }}
+                        className="h-10 px-3 py-2 text-sm border border-input bg-background rounded focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        {(Object.keys(ROLE_LABELS) as ColorRole[]).map(r => (
+                          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setColorList(colorList.filter((_, j) => j !== i))}
+                        className="text-muted-foreground hover:text-red-500 text-sm p-1"
+                        title="Hapus warna"
+                      >✕</button>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setColorList([...colorList, { role: "accent", hex: "#000000" }])}
+                >
+                  + Tambah Warna
+                </Button>
               </div>
             ) : ca?.brand_colors?.colors?.length ? (
               <div className="flex gap-3 flex-wrap">
-                {ca.brand_colors.colors.map((c, i) => (
+                {normalizeColors(ca.brand_colors.colors).map((c, i) => (
                   <div key={i} className="flex items-center gap-2 bg-muted rounded-lg px-3 py-2">
-                    <div className="w-6 h-6 rounded-full border border-border shrink-0" style={{ backgroundColor: c }} />
-                    <span className="text-sm font-medium text-foreground">{c}</span>
+                    <div className="w-6 h-6 rounded-full border border-border shrink-0" style={{ backgroundColor: c.hex }} />
+                    <span className="text-sm font-mono text-foreground">{c.hex}</span>
+                    <span className={`text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full ${ROLE_BADGE[c.role]}`}>
+                      {ROLE_LABELS[c.role]}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -366,7 +443,7 @@ function ClientDetailContent() {
               <div className="flex gap-2 mb-3 flex-wrap">
                 {referencesList.map((r, i) => (
                   <div key={r.id} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
-                    <img src={r.file_url!} alt="Ref" className="w-full h-full object-cover" />
+                    <img src={assetUrl(r.file_url)} alt="Ref" className="w-full h-full object-cover" />
                     {uploading === "reference" && i === 0 && (
                       <span className="absolute inset-0 bg-black/50 flex items-center justify-center text-xs text-white">...</span>
                     )}

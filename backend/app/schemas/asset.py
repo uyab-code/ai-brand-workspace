@@ -2,8 +2,13 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+class ColorItem(BaseModel):
+    role: str = Field(pattern="^(primary|secondary|accent)$")
+    hex: str = Field(pattern="^#[0-9A-Fa-f]{6}$")
+
+
 class BrandColorsRequest(BaseModel):
-    colors: list[str] = Field(default_factory=list)
+    colors: list[ColorItem] = Field(default_factory=list)
 
 
 class BrandStyleRequest(BaseModel):

@@ -8,6 +8,7 @@ class GenerateDesignRequest(BaseModel):
     prompt: str = Field(..., min_length=1)
     content_brief_id: Optional[str] = None
     slide_id: Optional[str] = None
+    logo_position: str = Field(default="none", pattern="^(none|top_left|top_right)$")
 
 
 class CarouselSlideRequest(BaseModel):
@@ -20,6 +21,7 @@ class GenerateCarouselRequest(BaseModel):
     client_id: str
     slides: List[CarouselSlideRequest] = Field(..., min_length=1, max_length=10)
     content_brief_id: Optional[str] = None
+    logo_position: str = Field(default="none", pattern="^(none|top_left|top_right)$")
 
 
 class GeneratedDesignResponse(BaseModel):

@@ -6,6 +6,13 @@ export interface Client {
   status: "active" | "inactive"
 }
 
+export type ColorRole = "primary" | "secondary" | "accent"
+
+export interface BrandColor {
+  role: ColorRole
+  hex: string
+}
+
 export interface BrandAsset {
   id: string
   client_id: string
@@ -13,6 +20,6 @@ export interface BrandAsset {
   file_url: string | null
   font_name: string | null
   font_type: "primary" | "secondary" | "accent" | null
-  brand_colors: { colors: string[] } | null
+  brand_colors: { colors: BrandColor[] } | null
   brand_style: string | null
 }

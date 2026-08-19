@@ -1,5 +1,8 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.api.v1 import api_router
@@ -28,6 +31,10 @@ def create_app() -> FastAPI:
 
     # Exception handlers
     register_exception_handlers(app)
+
+    # Local file storage (serve uploaded assets; GCS menyusul)
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
     # API routes
     app.include_router(api_router, prefix="/api/v1")

@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import List
 from uuid import UUID
 
@@ -6,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import get_settings
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.core.permissions import Role, has_permission
 from app.models.client import BrandAsset, Client
@@ -22,6 +24,8 @@ from app.schemas.design import (
 from app.services.ai_service import AIService
 from app.services.credit_service import CreditService
 from app.services.activity_service import ActivityService
+
+settings = get_settings()
 
 
 class DesignService:
@@ -56,11 +60,13 @@ class DesignService:
             platform=brand_context.get("platform", "instagram"),
         )
 
-        # Check and deduct credits
-        await self.credits.deduct_credits(client.organization_id, 1)
-
-        # Call AI (off the event loop — sync OpenAI client is blocking)
+        # Call AI (off the event loop — sync OpenAI client is blocking).
+        # Deduct credits only AFTER generation succeeds, so a failed call doesn't burn credits.
+        logo_bytes = await self._get_logo_bytes(client.id)
         image_url = await asyncio.to_thread(self.ai.generate_image, full_prompt, data.content_type)
+        if logo_bytes and data.logo_position != "none":
+            image_url = await asyncio.to_thread(self.ai.overlay_logo, image_url, logo_bytes, data.logo_position)
+        await self.credits.deduct_credits(client.organization_id, 1)
 
         # Save design
         slide_uuid = UUID(data.slide_id) if data.slide_id else None
@@ -107,11 +113,10 @@ class DesignService:
             None,
         )
 
-        # Check and deduct credits for all slides
-        await self.credits.deduct_credits(client.organization_id, n_slides)
-
         brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
         next_version = await self._next_version(None, brief_uuid, client.id)
+
+        logo_bytes = await self._get_logo_bytes(client.id)
 
         results = []
         for slide in data.slides:
@@ -133,6 +138,10 @@ class DesignService:
             image_url = await asyncio.to_thread(
                 self.ai.generate_image, full_prompt, slide.content_type
             )
+            if logo_bytes and data.logo_position != "none":
+                image_url = await asyncio.to_thread(
+                    self.ai.overlay_logo, image_url, logo_bytes, data.logo_position
+                )
 
             design = GeneratedDesign(
                 client_id=client.id,
@@ -147,6 +156,10 @@ class DesignService:
             self.db.add(design)
             await self.db.flush()
             results.append(self._to_response(design))
+
+        # Deduct credits only after ALL slides generated successfully, so a
+        # failed call doesn't burn credits.
+        await self.credits.deduct_credits(client.organization_id, n_slides)
 
         await self.db.commit()
 
@@ -230,9 +243,16 @@ class DesignService:
 
         colors_asset = next((a for a in assets if a.brand_colors), None)
         if colors_asset and colors_asset.brand_colors:
-            c = colors_asset.brand_colors.get("colors", [])
-            if c:
-                colors = ", ".join(c)
+            raw = colors_asset.brand_colors.get("colors", [])
+            if raw:
+                parts = []
+                for i, c in enumerate(raw):
+                    if isinstance(c, dict) and "hex" in c:
+                        parts.append(f"{c.get('role', 'primary')}: {c['hex']}")
+                    else:  # string lama — role posisional
+                        role = ["primary", "secondary", "accent"][i] if i < 3 else "accent"
+                        parts.append(f"{role}: {c}")
+                colors = ", ".join(parts)
 
         font_list = [a for a in assets if a.asset_type == "font" and a.font_name]
         if font_list:
@@ -247,6 +267,26 @@ class DesignService:
             "has_guideline": any(a.asset_type == "guideline" and a.file_url for a in assets),
             "reference_count": len([a for a in assets if a.asset_type == "reference" and a.file_url]),
         }
+
+    async def _get_logo_bytes(self, client_id: UUID) -> bytes | None:
+        """Read uploaded logo bytes from disk, if the client has a logo."""
+        r = await self.db.execute(
+            select(BrandAsset).where(
+                BrandAsset.client_id == client_id,
+                BrandAsset.asset_type == "logo",
+                BrandAsset.file_url.isnot(None),
+            )
+        )
+        a = r.scalar_one_or_none()
+        if not a or not a.file_url:
+            return None
+        # "/uploads/{cid}/logo.png" -> "./uploads/{cid}/logo.png"
+        rel = a.file_url.removeprefix("/uploads")
+        path = os.path.join(settings.UPLOAD_DIR, rel.lstrip("/"))
+        if not os.path.exists(path):
+            return None
+        with open(path, "rb") as f:
+            return f.read()
 
     async def _add_brief_context(
         self,

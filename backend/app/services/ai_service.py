@@ -1,7 +1,6 @@
 import base64
 import io
 import urllib.request
-from urllib.parse import quote
 
 from PIL import Image
 
@@ -17,17 +16,23 @@ CONTENT_TYPE_SIZES = {
 }
 
 # Target aspect ratios for server-side crop (Pillow).
-# feed -> 4:5 (≈1080x1350), story -> 9:16 (≈1080x1920), carousel -> square (no crop).
+# feed & carousel -> 4:5 (≈1080x1350), story -> 9:16 (≈1080x1920).
 TARGET_RATIOS = {
     "feed": (4, 5),
     "story": (9, 16),
-    "carousel": None,
+    "carousel": (4, 5),
 }
 
 # Composition guidance appended to the image prompt so the model composes for the
 # FINAL frame. This way the server-side crop only trims margins, not the subject.
 COMPOSITION_NOTES = {
     "feed": (
+        "IMPORTANT - FINAL FRAME 4:5 (1080x1350): Compose the image so the ENTIRE main subject and "
+        "all essential content fit fully inside the central 4:5 band (the middle ~80% vertically). "
+        "The top and bottom strips MUST contain only background, texture, or empty space - they will "
+        "be cropped away, so never put faces, key objects, or text there. Do NOT crop the subject."
+    ),
+    "carousel": (
         "IMPORTANT - FINAL FRAME 4:5 (1080x1350): Compose the image so the ENTIRE main subject and "
         "all essential content fit fully inside the central 4:5 band (the middle ~80% vertically). "
         "The top and bottom strips MUST contain only background, texture, or empty space - they will "
@@ -78,9 +83,6 @@ Requirements:
 
 
 class AIService:
-    def __init__(self):
-        self.provider = settings.AI_PROVIDER
-
     def build_structured_prompt(
         self,
         user_prompt: str,
@@ -203,35 +205,8 @@ class AIService:
         content_type: str = "feed",
         platform: str = "instagram",
     ) -> str:
-        """Design Director: elaborate structured prompt into final image generation prompt."""
-        text_provider = settings.AI_TEXT_PROVIDER
-
-        if text_provider == "gemini":
-            return self._elaborate_gemini(user_prompt)
-        elif text_provider == "openai":
-            return self._elaborate_openai_text(user_prompt)
-        else:
-            return user_prompt  # No elaboration
-
-    def _elaborate_gemini(self, structured_prompt: str) -> str:
-        """Elaborate prompt using Google Gemini (free tier)."""
-        try:
-            from google import genai
-
-            api_key = settings.GEMINI_API_KEY
-            if not api_key:
-                return structured_prompt
-
-            client = genai.Client(api_key=api_key)
-            system = DESIGN_DIRECTOR_SYSTEM_PROMPT.format(structured_prompt=structured_prompt)
-            response = client.models.generate_content(
-                model=settings.DESIGN_DIRECTOR_MODEL,
-                contents=system,
-            )
-            return response.text.strip() if response.text else structured_prompt
-        except Exception as e:
-            print(f"[Design Director] Gemini error: {e}")
-            return structured_prompt
+        """Design Director: elaborate structured prompt into final image generation prompt (OpenAI)."""
+        return self._elaborate_openai_text(user_prompt)
 
     def _elaborate_openai_text(self, structured_prompt: str) -> str:
         """Elaborate prompt using OpenAI text model."""
@@ -250,7 +225,7 @@ class AIService:
                     {"role": "system", "content": system},
                     {"role": "user", "content": structured_prompt},
                 ],
-                max_tokens=900,
+                max_completion_tokens=900,
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -258,7 +233,7 @@ class AIService:
             return structured_prompt
 
     def generate_image(self, prompt: str, content_type: str = "feed") -> str:
-        """Generate a single image. Returns the image URL."""
+        """Generate a single image via OpenAI. Returns the image URL/data-URL."""
         width, height = CONTENT_TYPE_SIZES.get(content_type, (1024, 1024))
 
         # Compose for the final frame so the crop trims margins, not the subject.
@@ -266,52 +241,39 @@ class AIService:
         if note:
             prompt = f"{prompt}\n\n{note}"
 
-        if self.provider == "pollinations":
-            return self._generate_pollinations(prompt, width, height)
-        elif self.provider == "openai":
-            return self._generate_openai(prompt, content_type, width, height)
-        else:
-            return self._generate_pollinations(prompt, width, height)
-
-    def _generate_pollinations(self, prompt: str, width: int, height: int) -> str:
-        """Generate image via Pollinations.ai (free, no API key)."""
-        encoded = quote(prompt)
-        return f"https://image.pollinations.ai/prompt/{encoded}?width={width}&height={height}&seed=42"
+        return self._generate_openai(prompt, content_type, width, height)
 
     def _generate_openai(self, prompt: str, content_type: str, width: int, height: int) -> str:
-        """Generate image via OpenAI Images API, then fallback to Pollinations on error."""
-        try:
-            from openai import OpenAI
-            key = settings.OPENAI_API_KEY
-            if not key or key == "your-openai-api-key":
-                return self._generate_pollinations(prompt, width, height)
+        """Generate image via OpenAI Images API, crop to target ratio if enabled."""
+        from openai import OpenAI
 
-            model = settings.OPENAI_MODEL
-            size = self._openai_size(model, content_type, width, height)
-            client = OpenAI(api_key=key)
-            response = client.images.generate(
-                model=model,
-                prompt=prompt,
-                size=size,
-                quality=settings.OPENAI_IMAGE_QUALITY,
-                n=1,
-            )
-            image = response.data[0]
-            url = getattr(image, "url", None)
-            b64 = getattr(image, "b64_json", None)
-            if not settings.IMAGE_CROP_ENABLED:
-                if url:
-                    return url
-                if b64:
-                    return f"data:image/png;base64,{b64}"
+        key = settings.OPENAI_API_KEY
+        if not key or key == "your-openai-api-key":
+            raise ValueError("OPENAI_API_KEY belum di-set di backend/.env")
+
+        model = settings.OPENAI_MODEL
+        size = self._openai_size(model, content_type, width, height)
+        client = OpenAI(api_key=key)
+        response = client.images.generate(
+            model=model,
+            prompt=prompt,
+            size=size,
+            quality=settings.OPENAI_IMAGE_QUALITY,
+            n=1,
+        )
+        image = response.data[0]
+        url = getattr(image, "url", None)
+        b64 = getattr(image, "b64_json", None)
+        if not settings.IMAGE_CROP_ENABLED:
             if url:
-                return self._crop_to_ratio(None, url, content_type)
+                return url
             if b64:
-                return self._crop_to_ratio(base64.b64decode(b64), None, content_type)
-            return self._generate_pollinations(prompt, width, height)
-        except Exception as e:
-            print(f"[Image Generator] OpenAI error: {e}")
-            return self._generate_pollinations(prompt, width, height)
+                return f"data:image/png;base64,{b64}"
+        if url:
+            return self._crop_to_ratio(None, url, content_type)
+        if b64:
+            return self._crop_to_ratio(base64.b64decode(b64), None, content_type)
+        raise ValueError("OpenAI Images API tidak mengembalikan url maupun b64_json")
 
     def _fetch_bytes(self, url: str) -> bytes:
         with urllib.request.urlopen(url, timeout=30) as resp:
@@ -347,13 +309,43 @@ class AIService:
             im2.save(buf, format="PNG")
             return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
+    def overlay_logo(self, image_url: str, logo_bytes: bytes, position: str = "top_left") -> str:
+        """Paste logo client ke kiri/kanan atas gambar hasil generate, return PNG data-URL baru.
+
+        Diterapkan pada hasil final (setelah crop), jadi posisi logo pasti di frame 4:5 / 9:16.
+        Kiri/kanan atas aman dari crop karena crop hanya memangkas strip tengah vertikal.
+        """
+        if image_url.startswith("data:image"):
+            base64_data = image_url.split(",", 1)[1]
+            im = Image.open(io.BytesIO(base64.b64decode(base64_data)))
+        else:  # url eksternal
+            im = Image.open(io.BytesIO(self._fetch_bytes(image_url)))
+        im = im.convert("RGBA")
+
+        logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
+        # Logo ~18% lebar gambar, padding ~4%
+        target_w = max(40, int(im.width * 0.18))
+        target_h = max(1, int(logo.height * target_w / logo.width))
+        logo = logo.resize((target_w, target_h), Image.LANCZOS)
+
+        pad = int(im.width * 0.04)
+        if position == "top_right":
+            pos = (im.width - target_w - pad, pad)
+        else:  # top_left default
+            pos = (pad, pad)
+
+        im.paste(logo, pos, logo)  # alpha mask utk transparansi
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, format="PNG")
+        return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
+
     def _openai_size(self, model: str, content_type: str, width: int, height: int) -> str:
         if model in ("gpt-image-1", "gpt-image-2"):
             if content_type == "story":
                 return "1024x1536"
-            if content_type == "feed" and settings.IMAGE_CROP_ENABLED:
+            if content_type in ("feed", "carousel") and settings.IMAGE_CROP_ENABLED:
                 return "1024x1536"  # portrait 2:3, crop ke 4:5 di bawah
-            return "1024x1024"  # carousel (atau feed saat crop nonaktif)
+            return "1024x1024"  # saat crop nonaktif
         return f"{width}x{height}" if width != height else "1024x1024"
 
     def _aspect_composition_note(self, content_type: str) -> str:
@@ -366,6 +358,7 @@ class AIService:
     ASPECT_OVERRIDES = {
         "feed": ("4:5 portrait", "4:5 (1080x1350)"),
         "story": ("9:16 vertical", "9:16 (1080x1920)"),
+        "carousel": ("4:5 portrait", "4:5 (1080x1350)"),
     }
 
     def _aspect_spec(self, content_type: str) -> tuple[str, str]:

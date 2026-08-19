@@ -19,45 +19,42 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Select } from "@/components/ui/select"
 import { StatusBadge, ContentTypeBadge } from "@/components/ui/status-badge"
 import { StatusStepper } from "@/components/brief/status-stepper"
 import { Eye, EyeOff, CalendarClock } from "lucide-react"
 
-function DesignCard({ design }: { design: GeneratedDesign }) {
+function DesignThumb({ design }: { design: GeneratedDesign }) {
   const [showPrompt, setShowPrompt] = useState(false)
 
   return (
-    <div className="flex gap-3 items-start">
-      <Link href={`/dashboard/designs/${design.id}`} className="shrink-0">
+    <div className="max-w-[160px]">
+      <Link href={`/dashboard/designs/${design.id}`}>
         <img
           src={design.image_url}
           alt=""
-          className="w-28 h-28 object-cover rounded-lg border border-border shadow-card transition-all hover:shadow-modal"
+          className="aspect-[4/5] w-full object-cover rounded-lg border border-border shadow-card transition-all hover:shadow-modal"
           onError={(e) => {
             const t = e.target as HTMLImageElement
-            t.src = "https://placehold.co/112x112?text=AI&font=montserrat"
+            t.src = "https://placehold.co/300x375?text=AI&font=montserrat"
           }}
         />
       </Link>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            v{design.version} · {new Date(design.created_at!).toLocaleString("id-ID")}
-          </span>
-          <button
-            onClick={() => setShowPrompt(!showPrompt)}
-            className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-          >
-            {showPrompt ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            {showPrompt ? "Sembunyikan prompt" : "Lihat prompt"}
-          </button>
-        </div>
-        {showPrompt && (
-          <pre className="mt-2 text-[11px] text-foreground whitespace-pre-wrap bg-background p-3 rounded-md border border-border max-h-[300px] overflow-y-auto">
-            {design.prompt_used}
-          </pre>
-        )}
+      <div className="mt-1.5 text-xs text-muted-foreground">
+        v{design.version} · {new Date(design.created_at!).toLocaleString("id-ID")}
       </div>
+      <button
+        onClick={() => setShowPrompt(!showPrompt)}
+        className="mt-0.5 text-xs text-primary hover:underline inline-flex items-center gap-1"
+      >
+        {showPrompt ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+        {showPrompt ? "Sembunyikan prompt" : "Lihat prompt"}
+      </button>
+      {showPrompt && (
+        <pre className="mt-2 text-[11px] text-foreground whitespace-pre-wrap bg-background p-3 rounded-md border border-border max-h-[300px] overflow-y-auto">
+          {design.prompt_used}
+        </pre>
+      )}
     </div>
   )
 }
@@ -91,8 +88,10 @@ export default function BriefDetailPage() {
 
   // Generate image state
   const [slideDesigns, setSlideDesigns] = useState<Record<string, GeneratedDesign[]>>({})
-  const [slidePrompts, setSlidePrompts] = useState<Record<string, string>>({})
-  const [generatingSlides, setGeneratingSlides] = useState<Set<string>>(new Set())
+  const [globalPrompt, setGlobalPrompt] = useState("")
+  const [targetSlideId, setTargetSlideId] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [logoPosition, setLogoPosition] = useState<"none" | "top_left" | "top_right">("none")
 
   useEffect(() => { fetchData() }, [])
 
@@ -100,7 +99,9 @@ export default function BriefDetailPage() {
     const bRes = await contentBriefsApi.get(briefId)
     if (bRes.success) {
       setBrief(bRes.data)
-      setSlides(bRes.data.slides || [])
+      const loadedSlides = bRes.data.slides || []
+      setSlides(loadedSlides)
+      setTargetSlideId(loadedSlides.length > 0 ? loadedSlides[0].id : null)
       setEditName(bRes.data.name)
       setEditPlatform(bRes.data.platform)
       setEditDeadline(bRes.data.deadline_date || "")
@@ -167,33 +168,34 @@ export default function BriefDetailPage() {
     }
   }
 
-  const generateDesign = async (slideId: string) => {
-    const prompt = slidePrompts[slideId]?.trim()
+  const generateDesign = async () => {
+    const prompt = globalPrompt.trim()
     if (!prompt || !brief) return
-    setGeneratingSlides((prev) => new Set(prev).add(slideId))
+    if (slides.length > 0 && !targetSlideId) return
+    const slideId = slides.length > 0 ? targetSlideId : null
+    setGenerating(true)
     try {
       const r = await designsApi.generate(
         brief.client_id,
         brief.content_type,
         prompt,
         briefId,
-        slideId
+        slideId ?? undefined,
+        logoPosition
       )
       if (r.success) {
-        setSlideDesigns((prev) => {
-          const existing = prev[slideId] || []
-          return { ...prev, [slideId]: [r.data, ...existing] }
-        })
-        setSlidePrompts((prev) => ({ ...prev, [slideId]: "" }))
+        if (slideId) {
+          setSlideDesigns((prev) => {
+            const existing = prev[slideId] || []
+            return { ...prev, [slideId]: [r.data, ...existing] }
+          })
+        }
+        setGlobalPrompt("")
       }
     } catch (e) {
       // silent
     }
-    setGeneratingSlides((prev) => {
-      const next = new Set(prev)
-      next.delete(slideId)
-      return next
-    })
+    setGenerating(false)
   }
 
   if (loading) return (
@@ -238,7 +240,7 @@ export default function BriefDetailPage() {
             <Card><CardContent className="p-6 text-center text-muted-foreground">Tidak ada slide</CardContent></Card>
           ) : (
             <div className="space-y-3">
-              {slides.map((s, i) => (
+              {slides.map((s) => (
                 <Card key={s.id}>
                   <CardContent className="p-4">
                     {editingSlideId === s.id ? (
@@ -281,41 +283,66 @@ export default function BriefDetailPage() {
                       </div>
                     )}
 
-                    {/* Generate AI Image Section */}
-                    <div className="mt-4 pt-4 border-t border-border">
-                      <div className="flex gap-2">
-                        <textarea
-                          className="flex-1 min-h-[40px] rounded border border-input bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          placeholder="Prompt untuk generate desain slide ini..."
-                          value={slidePrompts[s.id] || ""}
-                          onChange={(e) =>
-                            setSlidePrompts({ ...slidePrompts, [s.id]: e.target.value })
-                          }
-                        />
-                        <Button
-                          size="sm"
-                          className="self-start shrink-0"
-                          onClick={() => generateDesign(s.id)}
-                          disabled={generatingSlides.has(s.id) || !slidePrompts[s.id]?.trim()}
-                        >
-                          {generatingSlides.has(s.id) ? "..." : "Generate"}
-                        </Button>
-                      </div>
-
-                      {/* Generated designs */}
-                      {slideDesigns[s.id] && slideDesigns[s.id].length > 0 && (
-                        <div className="mt-3 space-y-3">
+                    {/* Generated designs — grid thumbnails */}
+                    {slideDesigns[s.id] && slideDesigns[s.id].length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-border">
+                        <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
                           {slideDesigns[s.id].map((d) => (
-                            <DesignCard key={d.id} design={d} />
+                            <DesignThumb key={d.id} design={d} />
                           ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
+
+          {/* Global Generate AI Image */}
+          <Card className="mt-4">
+            <CardContent className="p-4 space-y-3">
+              <h3 className="text-sm font-semibold">Generate AI Image</h3>
+              <textarea
+                className="w-full min-h-[60px] rounded border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                placeholder="Prompt untuk generate desain..."
+                value={globalPrompt}
+                onChange={(e) => setGlobalPrompt(e.target.value)}
+              />
+              <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-end">
+                {slides.length > 0 && (
+                  <Select
+                    className="sm:w-44"
+                    value={targetSlideId ?? ""}
+                    onChange={(e) => setTargetSlideId(e.target.value)}
+                    aria-label="Slide target"
+                  >
+                    {slides.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        Slide {s.slide_number}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <select
+                  className="h-10 shrink-0 rounded border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-36"
+                  value={logoPosition}
+                  onChange={(e) => setLogoPosition(e.target.value as "none" | "top_left" | "top_right")}
+                >
+                  <option value="none">Tanpa logo</option>
+                  <option value="top_left">Kiri atas</option>
+                  <option value="top_right">Kanan atas</option>
+                </select>
+                <Button
+                  className="shrink-0"
+                  onClick={() => generateDesign()}
+                  disabled={generating || !globalPrompt.trim() || (slides.length > 0 && !targetSlideId)}
+                >
+                  {generating ? "..." : "Generate"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Right: Header + Info + Status — sticky */}

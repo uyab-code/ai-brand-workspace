@@ -1,6 +1,6 @@
 from typing import List
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user, get_db
 from app.models.user import User
@@ -15,8 +15,13 @@ async def get_assets(client_id: UUID, db: AsyncSession = Depends(get_db), curren
     return SuccessResponse(data=await AssetService(db).get_client_assets(client_id, current_user.id))
 
 @router.post("/{client_id}/logo", response_model=SuccessResponse[AssetResponse])
-async def upload_logo(client_id: UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return SuccessResponse(data=await AssetService(db).add_file_asset(client_id, "logo", f"/uploads/{client_id}/logo.png", current_user.id))
+async def upload_logo(
+    client_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return SuccessResponse(data=await AssetService(db).upload_logo(client_id, file, current_user.id))
 
 @router.post("/{client_id}/guideline", response_model=SuccessResponse[AssetResponse])
 async def upload_guideline(client_id: UUID, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
