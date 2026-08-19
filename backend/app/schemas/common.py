@@ -5,9 +5,9 @@ from pydantic import BaseModel
 T = TypeVar("T")
 
 
-class SuccessResponse(BaseModel, Generic[T]):
-    success: bool = True
-    data: T
+class ErrorDetail(BaseModel):
+    code: str
+    message: str
 
 
 class ErrorResponse(BaseModel):
@@ -15,9 +15,11 @@ class ErrorResponse(BaseModel):
     error: ErrorDetail
 
 
-class ErrorDetail(BaseModel):
-    code: str
-    message: str
+class Pagination(BaseModel):
+    page: int
+    limit: int
+    total: int
+    total_pages: int
 
 
 class PaginatedResponse(BaseModel, Generic[T]):
@@ -26,11 +28,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     pagination: Pagination
 
 
-class Pagination(BaseModel):
-    page: int
-    limit: int
-    total: int
-    total_pages: int
+class SuccessResponse(BaseModel, Generic[T]):
+    success: bool = True
+    data: T
 
 
 class MessageResponse(BaseModel):
