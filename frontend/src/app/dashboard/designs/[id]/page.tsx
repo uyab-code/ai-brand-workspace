@@ -23,9 +23,7 @@ export default function DesignDetailPage() {
     const dRes = await designsApi.get(designId)
     if (dRes.success) {
       setDesign(dRes.data)
-      // Extract user prompt: everything after the last "---\n\n" divider
-      const parts = dRes.data.prompt_used.split("---\n\n")
-      setUserPrompt(parts.length > 1 ? parts[parts.length - 1] : dRes.data.prompt_used)
+      setUserPrompt(dRes.data.prompt_used)
       const cRes = await clientsApi.get(dRes.data.client_id)
       if (cRes.success) setClientName(cRes.data.name)
     }
@@ -134,9 +132,27 @@ export default function DesignDetailPage() {
             <Button variant="outline" size="sm" onClick={copyPrompt}>Copy</Button>
           </CardHeader>
           <CardContent>
-            <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
-              {userPrompt}
-            </pre>
+            {userPrompt.includes("--- STRUCTURED BRIEF ---") ? (
+              <div className="space-y-4">
+                {userPrompt.split(/--- .+? ---\n\n/).filter(Boolean).map((section, i) => {
+                  const headers = ["Structured Brief", "Elaborated Prompt (Design Director)"]
+                  return (
+                    <div key={i}>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                        {headers[i] || `Section ${i + 1}`}
+                      </p>
+                      <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
+                        {section.trim()}
+                      </pre>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
+                {userPrompt}
+              </pre>
+            )}
           </CardContent>
         </Card>
       </div>

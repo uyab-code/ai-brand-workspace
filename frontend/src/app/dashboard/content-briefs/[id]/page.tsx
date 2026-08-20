@@ -51,9 +51,21 @@ function DesignThumb({ design }: { design: GeneratedDesign }) {
         {showPrompt ? "Sembunyikan prompt" : "Lihat prompt"}
       </button>
       {showPrompt && (
-        <pre className="mt-2 text-[11px] text-foreground whitespace-pre-wrap bg-background p-3 rounded-md border border-border max-h-[300px] overflow-y-auto">
-          {design.prompt_used}
-        </pre>
+        <div className="mt-2 text-[11px] text-foreground bg-background p-3 rounded-md border border-border max-h-[300px] overflow-y-auto space-y-3">
+          {design.prompt_used.includes("--- STRUCTURED BRIEF ---") ? (
+            design.prompt_used.split(/--- .+? ---\n\n/).filter(Boolean).map((section, i) => {
+              const headers = ["Structured Brief", "Elaborated Prompt"]
+              return (
+                <div key={i}>
+                  <p className="font-semibold uppercase tracking-wide text-muted-foreground mb-1">{headers[i] || `Section ${i+1}`}</p>
+                  <pre className="whitespace-pre-wrap">{section.trim()}</pre>
+                </div>
+              )
+            })
+          ) : (
+            <pre className="whitespace-pre-wrap">{design.prompt_used}</pre>
+          )}
+        </div>
       )}
     </div>
   )

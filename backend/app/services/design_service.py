@@ -53,12 +53,15 @@ class DesignService:
             content_type=data.content_type,
             platform=brand_context.get("platform", "instagram"),
         )
-        full_prompt = await asyncio.to_thread(
+        elaborated_prompt = await asyncio.to_thread(
             self.ai.elaborate_prompt,
             user_prompt=structured_prompt,
             content_type=data.content_type,
             platform=brand_context.get("platform", "instagram"),
         )
+
+        # Use elaborated prompt for image generation, but store both in prompt_used
+        full_prompt = elaborated_prompt
 
         # Call AI (off the event loop — sync OpenAI client is blocking).
         # Deduct credits only AFTER generation succeeds, so a failed call doesn't burn credits.
@@ -73,12 +76,15 @@ class DesignService:
         brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
         version = await self._next_version(slide_uuid, brief_uuid, client.id)
 
+        # Store both structured and elaborated prompts
+        combined_prompt = f"--- STRUCTURED BRIEF ---\n\n{structured_prompt}\n\n--- ELABORATED PROMPT (Design Director) ---\n\n{elaborated_prompt}"
+
         design = GeneratedDesign(
             client_id=client.id,
             content_brief_id=brief_uuid,
             slide_id=slide_uuid,
             image_url=image_url,
-            prompt_used=full_prompt,
+            prompt_used=combined_prompt,
             content_type=data.content_type,
             version=version,
             credits_used=1,
@@ -129,25 +135,27 @@ class DesignService:
                 content_type=slide.content_type,
                 platform=slide_context.get("platform", "instagram"),
             )
-            full_prompt = await asyncio.to_thread(
+            elaborated_prompt = await asyncio.to_thread(
                 self.ai.elaborate_prompt,
                 user_prompt=structured_prompt,
                 content_type=slide.content_type,
                 platform=slide_context.get("platform", "instagram"),
             )
             image_url = await asyncio.to_thread(
-                self.ai.generate_image, full_prompt, slide.content_type
+                self.ai.generate_image, elaborated_prompt, slide.content_type
             )
             if logo_bytes and data.logo_position != "none":
                 image_url = await asyncio.to_thread(
                     self.ai.overlay_logo, image_url, logo_bytes, data.logo_position
                 )
 
+            combined_prompt = f"--- STRUCTURED BRIEF ---\n\n{structured_prompt}\n\n--- ELABORATED PROMPT (Design Director) ---\n\n{elaborated_prompt}"
+
             design = GeneratedDesign(
                 client_id=client.id,
                 content_brief_id=brief_uuid,
                 image_url=image_url,
-                prompt_used=full_prompt,
+                prompt_used=combined_prompt,
                 content_type=slide.content_type,
                 version=next_version,
                 credits_used=1,
