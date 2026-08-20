@@ -64,3 +64,6 @@ DESIGN.md
 DEVELOPMENT.md
 PRD.md
 REDESIGN_SPEC.md
+
+.vercel
+.env*
