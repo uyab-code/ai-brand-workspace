@@ -23,8 +23,7 @@ export const designsApi = {
   generateCarousel: async (
     clientId: string,
     slides: { prompt: string; content_type?: string; name?: string }[],
-    contentBriefId?: string,
-    logoPosition: "none" | "top_left" | "top_right" = "none"
+    contentBriefId?: string
   ): Promise<ApiResponse<GeneratedDesign[]>> => {
     const res = await api.post("/designs/generate/carousel", {
       client_id: clientId,
@@ -34,7 +33,6 @@ export const designsApi = {
         name: s.name || null,
       })),
       content_brief_id: contentBriefId || null,
-      logo_position: logoPosition,
     })
     return res.data
   },

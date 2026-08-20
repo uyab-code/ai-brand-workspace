@@ -1,5 +1,4 @@
 import asyncio
-import os
 from typing import List
 from uuid import UUID
 
@@ -261,26 +260,6 @@ class DesignService:
             "has_guideline": any(a.asset_type == "guideline" and a.file_url for a in assets),
             "reference_count": len([a for a in assets if a.asset_type == "reference" and a.file_url]),
         }
-
-    async def _get_logo_bytes(self, client_id: UUID) -> bytes | None:
-        """Read uploaded logo bytes from disk, if the client has a logo."""
-        r = await self.db.execute(
-            select(BrandAsset).where(
-                BrandAsset.client_id == client_id,
-                BrandAsset.asset_type == "logo",
-                BrandAsset.file_url.isnot(None),
-            )
-        )
-        a = r.scalar_one_or_none()
-        if not a or not a.file_url:
-            return None
-        # "/uploads/{cid}/logo.png" -> "./uploads/{cid}/logo.png"
-        rel = a.file_url.removeprefix("/uploads")
-        path = os.path.join(settings.UPLOAD_DIR, rel.lstrip("/"))
-        if not os.path.exists(path):
-            return None
-        with open(path, "rb") as f:
-            return f.read()
 
     async def _add_brief_context(
         self,

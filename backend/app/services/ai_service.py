@@ -67,18 +67,18 @@ CONTENT_TYPE_SPECS = {
     },
 }
 
-DESIGN_DIRECTOR_SYSTEM_PROMPT = """You are a professional design director for a creative agency. Transform the structured creative brief below into one high-quality image generation prompt.
+DESIGN_DIRECTOR_SYSTEM_PROMPT = """You are a professional design director for a creative agency. Your job is to REFINE the user's creative brief into a better image generation prompt — NOT to reimagine or reinterpret it.
 
 Structured creative brief:
 {structured_prompt}
 
-Requirements:
+CRITICAL RULES:
 1. Output only the final prompt, no title, no quotes, no explanation.
 2. Write in English for better image generation quality.
-3. Prioritize concrete visual details: subject, composition, lighting, color, style, background, hierarchy.
-4. Preserve brand identity, output format, slide intent, and constraints.
-5. Avoid asking the image model to render long readable copy; describe space for copy instead.
-6. Keep the prompt concise enough for image generators while retaining critical rules.
+3. PRESERVE every detail the user specified: subject, pose, composition, colors, style, elements, mood, and layout. Do NOT change, replace, or omit any of them.
+4. Only ADD technical image quality terms (lighting, resolution, sharpness) — never add new subjects, objects, or scene elements the user didn't mention.
+5. Keep the prompt concise but retain all critical visual rules from the user's input.
+6. Do NOT invent details that weren't in the original brief.
 """
 
 
@@ -166,7 +166,6 @@ class AIService:
             ("talent_specification", "TALENT SPECIFICATION"),
             ("hero_visual_direction", "HERO VISUAL DIRECTION"),
             ("layout_rules", "LAYOUT RULES"),
-            ("global_design_rules", "GLOBAL DESIGN RULES"),
         ]:
             value = ctx.get(field_name, "")
             if value:
@@ -308,36 +307,6 @@ class AIService:
             buf = io.BytesIO()
             im2.save(buf, format="PNG")
             return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
-
-    def overlay_logo(self, image_url: str, logo_bytes: bytes, position: str = "top_left") -> str:
-        """Paste logo client ke kiri/kanan atas gambar hasil generate, return PNG data-URL baru.
-
-        Diterapkan pada hasil final (setelah crop), jadi posisi logo pasti di frame 4:5 / 9:16.
-        Kiri/kanan atas aman dari crop karena crop hanya memangkas strip tengah vertikal.
-        """
-        if image_url.startswith("data:image"):
-            base64_data = image_url.split(",", 1)[1]
-            im = Image.open(io.BytesIO(base64.b64decode(base64_data)))
-        else:  # url eksternal
-            im = Image.open(io.BytesIO(self._fetch_bytes(image_url)))
-        im = im.convert("RGBA")
-
-        logo = Image.open(io.BytesIO(logo_bytes)).convert("RGBA")
-        # Logo ~18% lebar gambar, padding ~4%
-        target_w = max(40, int(im.width * 0.18))
-        target_h = max(1, int(logo.height * target_w / logo.width))
-        logo = logo.resize((target_w, target_h), Image.LANCZOS)
-
-        pad = int(im.width * 0.04)
-        if position == "top_right":
-            pos = (im.width - target_w - pad, pad)
-        else:  # top_left default
-            pos = (pad, pad)
-
-        im.paste(logo, pos, logo)  # alpha mask utk transparansi
-        buf = io.BytesIO()
-        im.convert("RGB").save(buf, format="PNG")
-        return f"data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}"
 
     def _openai_size(self, model: str, content_type: str, width: int, height: int) -> str:
         if model in ("gpt-image-1", "gpt-image-2"):
