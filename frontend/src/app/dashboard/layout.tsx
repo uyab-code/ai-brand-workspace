@@ -36,7 +36,7 @@ export default function DashboardLayout({
 
   return (
     <ToastProvider>
-      <div className="flex min-h-screen bg-background">
+      <div className="flex h-screen overflow-hidden bg-background">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div
@@ -46,14 +46,16 @@ export default function DashboardLayout({
         )}
         {/* Sidebar */}
         <div className={`
-          fixed md:static inset-y-0 left-0 z-40 transform transition-transform duration-200 ease-in-out
+          fixed md:relative inset-y-0 left-0 z-40 w-[272px] shrink-0 transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}>
           <Sidebar onNavigate={() => setSidebarOpen(false)} isSuperadmin={!!user?.is_superuser} />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-          <main className="flex-1 overflow-auto bg-background p-6 lg:p-8">{children}</main>
+        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+          <div className="sticky top-0 z-30">
+            <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+          </div>
+          <main className="flex-1 bg-background p-6 lg:p-8">{children}</main>
         </div>
       </div>
     </ToastProvider>

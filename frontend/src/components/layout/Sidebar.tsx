@@ -40,7 +40,7 @@ export function Sidebar({
   const items = isSuperadmin ? [...menuItems, adminItem] : menuItems
 
   return (
-    <aside className="flex w-[272px] min-h-screen flex-col border-r border-border bg-card shadow-card">
+    <aside className="flex w-[272px] h-full flex-col border-r border-border bg-card shadow-card">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-border px-5">
         <Link
