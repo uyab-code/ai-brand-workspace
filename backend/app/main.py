@@ -18,6 +18,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/docs" if settings.DEBUG else None,
         redoc_url="/redoc" if settings.DEBUG else None,
+        redirect_slashes=False,
     )
 
     # CORS
