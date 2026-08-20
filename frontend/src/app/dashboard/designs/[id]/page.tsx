@@ -132,27 +132,9 @@ export default function DesignDetailPage() {
             <Button variant="outline" size="sm" onClick={copyPrompt}>Copy</Button>
           </CardHeader>
           <CardContent>
-            {userPrompt.includes("--- STRUCTURED BRIEF ---") ? (
-              <div className="space-y-4">
-                {userPrompt.split(/--- .+? ---\n\n/).filter(Boolean).map((section, i) => {
-                  const headers = ["Structured Brief", "Elaborated Prompt (Design Director)"]
-                  return (
-                    <div key={i}>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                        {headers[i] || `Section ${i + 1}`}
-                      </p>
-                      <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
-                        {section.trim()}
-                      </pre>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
-                {userPrompt}
-              </pre>
-            )}
+            <pre className="text-sm text-foreground whitespace-pre-wrap bg-background p-4 rounded border border-border">
+              {userPrompt}
+            </pre>
           </CardContent>
         </Card>
       </div>

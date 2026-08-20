@@ -76,15 +76,12 @@ class DesignService:
         brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
         version = await self._next_version(slide_uuid, brief_uuid, client.id)
 
-        # Store both structured and elaborated prompts
-        combined_prompt = f"--- STRUCTURED BRIEF ---\n\n{structured_prompt}\n\n--- ELABORATED PROMPT (Design Director) ---\n\n{elaborated_prompt}"
-
         design = GeneratedDesign(
             client_id=client.id,
             content_brief_id=brief_uuid,
             slide_id=slide_uuid,
             image_url=image_url,
-            prompt_used=combined_prompt,
+            prompt_used=data.prompt,
             content_type=data.content_type,
             version=version,
             credits_used=1,
@@ -149,13 +146,11 @@ class DesignService:
                     self.ai.overlay_logo, image_url, logo_bytes, data.logo_position
                 )
 
-            combined_prompt = f"--- STRUCTURED BRIEF ---\n\n{structured_prompt}\n\n--- ELABORATED PROMPT (Design Director) ---\n\n{elaborated_prompt}"
-
             design = GeneratedDesign(
                 client_id=client.id,
                 content_brief_id=brief_uuid,
                 image_url=image_url,
-                prompt_used=combined_prompt,
+                prompt_used=slide.prompt,
                 content_type=slide.content_type,
                 version=next_version,
                 credits_used=1,
