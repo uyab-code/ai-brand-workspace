@@ -225,7 +225,7 @@ class AIService:
                     {"role": "system", "content": system},
                     {"role": "user", "content": structured_prompt},
                 ],
-                max_completion_tokens=900,
+                max_completion_tokens=4096,
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
