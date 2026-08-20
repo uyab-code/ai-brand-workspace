@@ -8,8 +8,7 @@ export const designsApi = {
     contentType: string,
     prompt: string,
     contentBriefId?: string,
-    slideId?: string,
-    logoPosition: "none" | "top_left" | "top_right" = "none"
+    slideId?: string
   ): Promise<ApiResponse<GeneratedDesign>> => {
     const res = await api.post("/designs/generate", {
       client_id: clientId,
@@ -17,7 +16,6 @@ export const designsApi = {
       prompt,
       content_brief_id: contentBriefId || null,
       slide_id: slideId || null,
-      logo_position: logoPosition,
     })
     return res.data
   },

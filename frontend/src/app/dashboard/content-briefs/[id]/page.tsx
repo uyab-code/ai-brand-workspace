@@ -91,7 +91,6 @@ export default function BriefDetailPage() {
   const [globalPrompt, setGlobalPrompt] = useState("")
   const [targetSlideId, setTargetSlideId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
-  const [logoPosition, setLogoPosition] = useState<"none" | "top_left" | "top_right">("none")
 
   useEffect(() => { fetchData() }, [])
 
@@ -180,8 +179,7 @@ export default function BriefDetailPage() {
         brief.content_type,
         prompt,
         briefId,
-        slideId ?? undefined,
-        logoPosition
+        slideId ?? undefined
       )
       if (r.success) {
         if (slideId) {
@@ -324,15 +322,6 @@ export default function BriefDetailPage() {
                     ))}
                   </Select>
                 )}
-                <select
-                  className="h-10 shrink-0 rounded border border-input bg-card px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-36"
-                  value={logoPosition}
-                  onChange={(e) => setLogoPosition(e.target.value as "none" | "top_left" | "top_right")}
-                >
-                  <option value="none">Tanpa logo</option>
-                  <option value="top_left">Kiri atas</option>
-                  <option value="top_right">Kanan atas</option>
-                </select>
                 <Button
                   className="shrink-0"
                   onClick={() => generateDesign()}

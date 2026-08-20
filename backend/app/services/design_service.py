@@ -60,15 +60,12 @@ class DesignService:
             platform=brand_context.get("platform", "instagram"),
         )
 
-        # Use elaborated prompt for image generation, but store both in prompt_used
+        # Use elaborated prompt for image generation
         full_prompt = elaborated_prompt
 
         # Call AI (off the event loop — sync OpenAI client is blocking).
         # Deduct credits only AFTER generation succeeds, so a failed call doesn't burn credits.
-        logo_bytes = await self._get_logo_bytes(client.id)
         image_url = await asyncio.to_thread(self.ai.generate_image, full_prompt, data.content_type)
-        if logo_bytes and data.logo_position != "none":
-            image_url = await asyncio.to_thread(self.ai.overlay_logo, image_url, logo_bytes, data.logo_position)
         await self.credits.deduct_credits(client.organization_id, 1)
 
         # Save design
@@ -81,7 +78,7 @@ class DesignService:
             content_brief_id=brief_uuid,
             slide_id=slide_uuid,
             image_url=image_url,
-            prompt_used=data.prompt,
+            prompt_used=full_prompt,
             content_type=data.content_type,
             version=version,
             credits_used=1,
@@ -119,8 +116,6 @@ class DesignService:
         brief_uuid = UUID(data.content_brief_id) if data.content_brief_id else None
         next_version = await self._next_version(None, brief_uuid, client.id)
 
-        logo_bytes = await self._get_logo_bytes(client.id)
-
         results = []
         for slide in data.slides:
             slide_context = {**brand_context, "slide_text": slide.prompt}
@@ -141,16 +136,12 @@ class DesignService:
             image_url = await asyncio.to_thread(
                 self.ai.generate_image, elaborated_prompt, slide.content_type
             )
-            if logo_bytes and data.logo_position != "none":
-                image_url = await asyncio.to_thread(
-                    self.ai.overlay_logo, image_url, logo_bytes, data.logo_position
-                )
 
             design = GeneratedDesign(
                 client_id=client.id,
                 content_brief_id=brief_uuid,
                 image_url=image_url,
-                prompt_used=slide.prompt,
+                prompt_used=elaborated_prompt,
                 content_type=slide.content_type,
                 version=next_version,
                 credits_used=1,
