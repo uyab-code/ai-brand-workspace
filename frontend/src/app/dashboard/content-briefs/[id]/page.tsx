@@ -22,11 +22,9 @@ import { Label } from "@/components/ui/label"
 import { Select } from "@/components/ui/select"
 import { StatusBadge, ContentTypeBadge } from "@/components/ui/status-badge"
 import { StatusStepper } from "@/components/brief/status-stepper"
-import { Eye, EyeOff, CalendarClock } from "lucide-react"
+import { CalendarClock } from "lucide-react"
 
 function DesignThumb({ design }: { design: GeneratedDesign }) {
-  const [showPrompt, setShowPrompt] = useState(false)
-
   return (
     <div className="max-w-[160px]">
       <Link href={`/dashboard/designs/${design.id}`}>
@@ -43,18 +41,6 @@ function DesignThumb({ design }: { design: GeneratedDesign }) {
       <div className="mt-1.5 text-xs text-muted-foreground">
         v{design.version} · {new Date(design.created_at!).toLocaleString("id-ID")}
       </div>
-      <button
-        onClick={() => setShowPrompt(!showPrompt)}
-        className="mt-0.5 text-xs text-primary hover:underline inline-flex items-center gap-1"
-      >
-        {showPrompt ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-        {showPrompt ? "Sembunyikan prompt" : "Lihat prompt"}
-      </button>
-      {showPrompt && (
-        <pre className="mt-2 text-[11px] text-foreground whitespace-pre-wrap bg-background p-3 rounded-md border border-border max-h-[300px] overflow-y-auto">
-          {design.prompt_used}
-        </pre>
-      )}
     </div>
   )
 }
