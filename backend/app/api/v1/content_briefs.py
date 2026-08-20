@@ -19,7 +19,7 @@ from app.services.content_brief_service import ContentBriefService
 router = APIRouter()
 
 
-@router.post("/", response_model=SuccessResponse[ContentBriefResponse])
+@router.post("", response_model=SuccessResponse[ContentBriefResponse])
 async def create_brief(
     data: CreateBriefRequest,
     db: AsyncSession = Depends(get_db),

@@ -20,7 +20,7 @@ from app.services.organization_service import OrganizationService
 router = APIRouter()
 
 
-@router.post("/", response_model=SuccessResponse[OrganizationResponse])
+@router.post("", response_model=SuccessResponse[OrganizationResponse])
 async def create_organization(
     data: CreateOrganizationRequest,
     db: AsyncSession = Depends(get_db),
@@ -31,7 +31,7 @@ async def create_organization(
     return SuccessResponse(data=org)
 
 
-@router.get("/", response_model=SuccessResponse[List[OrganizationResponse]])
+@router.get("", response_model=SuccessResponse[List[OrganizationResponse]])
 async def list_organizations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

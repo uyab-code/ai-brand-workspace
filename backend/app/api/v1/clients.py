@@ -10,7 +10,7 @@ from app.services.client_service import ClientService
 
 router = APIRouter()
 
-@router.post("/", response_model=SuccessResponse[ClientResponse])
+@router.post("", response_model=SuccessResponse[ClientResponse])
 async def create_client(data: CreateClientRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     return SuccessResponse(data=await ClientService(db).create_client(data, current_user.id))
 
