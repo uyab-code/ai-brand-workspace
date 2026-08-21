@@ -129,6 +129,7 @@ export default function BriefDetailPage() {
   }
 
   const startEdit = () => {
+    if (!brief) return
     setEditName(brief.name)
     setEditPlatform(brief.platform)
     setEditDeadline(brief.deadline_date || "")
