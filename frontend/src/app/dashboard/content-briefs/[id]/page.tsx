@@ -5,6 +5,8 @@ import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { clientsApi } from "@/api/clients"
 import { contentBriefsApi } from "@/api/content-briefs"
+import { organizationsApi } from "@/api/organizations"
+import { TeamMember } from "@/types/organization"
 import {
   ContentBrief,
   BriefSlide,
@@ -66,6 +68,8 @@ export default function BriefDetailPage() {
   const [editName, setEditName] = useState("")
   const [editPlatform, setEditPlatform] = useState("")
   const [editDeadline, setEditDeadline] = useState("")
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [assignedUserIds, setAssignedUserIds] = useState<string[]>([])
   const [slides, setSlides] = useState<BriefSlide[]>([])
   const [editingSlideId, setEditingSlideId] = useState<string | null>(null)
   const [slideEditTitle, setSlideEditTitle] = useState("")
@@ -118,9 +122,29 @@ export default function BriefDetailPage() {
       name: editName,
       platform: editPlatform,
       deadline_date: editDeadline || null,
+      assigned_user_ids: assignedUserIds,
     })
     await fetchData()
     setEditing(false)
+  }
+
+  const startEdit = () => {
+    setEditName(brief.name)
+    setEditPlatform(brief.platform)
+    setEditDeadline(brief.deadline_date || "")
+    setAssignedUserIds((brief.assigned_users || []).map((u) => u.id))
+    if (members.length === 0) {
+      organizationsApi.getMembers(brief.organization_id).then((r) => {
+        if (r.success) setMembers(r.data)
+      })
+    }
+    setEditing(true)
+  }
+
+  const toggleAssignee = (userId: string) => {
+    setAssignedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
   }
 
   const handleDelete = async () => {
@@ -331,7 +355,7 @@ export default function BriefDetailPage() {
                   <p className="mt-1 text-sm text-muted-foreground">{clientName}</p>
                 </div>
                 {!editing && (
-                  <Button variant="outline" size="sm" className="shrink-0" onClick={() => setEditing(true)}>Edit</Button>
+                  <Button variant="outline" size="sm" className="shrink-0" onClick={startEdit}>Edit</Button>
                 )}
               </div>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -370,6 +394,27 @@ export default function BriefDetailPage() {
                     <Button size="sm" onClick={saveBrief}>Simpan</Button>
                     <Button size="sm" variant="outline" onClick={() => { setEditing(false); setEditName(brief.name); setEditPlatform(brief.platform); setEditDeadline(brief.deadline_date || "") }}>Batal</Button>
                   </div>
+
+                  {/* Assignee picker (edit mode) */}
+                  {members.length > 0 && (
+                    <div className="space-y-2 pt-1">
+                      <Label>Assign ke</Label>
+                      <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                        {members.map((m) => (
+                          <label key={m.id} className="flex items-center gap-2 rounded border border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-muted/50">
+                            <input
+                              type="checkbox"
+                              checked={assignedUserIds.includes(m.user_id)}
+                              onChange={() => toggleAssignee(m.user_id)}
+                              className="h-4 w-4 accent-[var(--primary)]"
+                            />
+                            <span className="font-medium text-foreground">{m.user_name || m.user_email}</span>
+                            <span className="text-xs text-muted-foreground">({m.role})</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -386,6 +431,22 @@ export default function BriefDetailPage() {
                       <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
                       {brief.deadline_date ? new Date(brief.deadline_date).toLocaleDateString("id-ID") : "-"}
                     </span>
+                  </InfoRow>
+                  <InfoRow label="Assignees">
+                    {(brief.assigned_users?.length ?? 0) > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {brief.assigned_users!.map((u) => (
+                          <span key={u.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
+                            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/10 text-[9px] font-bold text-primary">
+                              {u.name.split(" ").map((p) => p[0]).join("").toUpperCase().slice(0, 2)}
+                            </span>
+                            {u.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Belum ada</span>
+                    )}
                   </InfoRow>
                 </div>
               )}

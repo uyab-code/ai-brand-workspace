@@ -1,7 +1,7 @@
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -61,3 +61,21 @@ class BriefSlide(Base, UUIDPrimaryKeyMixin):
     brief_text: Mapped[str] = mapped_column(Text, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     slide_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class BriefAssignment(Base, UUIDPrimaryKeyMixin):
+    """A user assigned to a content brief; they receive update notifications."""
+
+    __tablename__ = "brief_assignments"
+    __table_args__ = (UniqueConstraint("brief_id", "user_id", name="uq_brief_assignments_brief_user"),)
+
+    brief_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("content_briefs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )

@@ -9,10 +9,12 @@ from sqlalchemy.orm import selectinload
 from app.core.exceptions import NotFoundException, ForbiddenException, ValidationException
 from app.core.permissions import Role, has_permission
 from app.models.client import Client
-from app.models.content_brief import BriefSlide, ContentBrief
+from app.models.content_brief import BriefAssignment, BriefSlide, ContentBrief
+from app.models.notification import Notification
 from app.models.organization import TeamMember
 from app.models.user import User
 from app.schemas.content_brief import (
+    BriefAssignee,
     BriefSlideResponse,
     ContentBriefResponse,
     CreateBriefRequest,
@@ -62,6 +64,18 @@ class ContentBriefService:
             )
             self.db.add(slide)
 
+        await self.db.flush()
+        if data.assigned_user_ids:
+            await self._sync_assignments(brief, org_id, data.assigned_user_ids)
+            await self._notify_assignees(
+                brief,
+                org_id,
+                actor_id=user_id,
+                type="brief_assigned",
+                message=f"menugaskan Anda pada brief \"{brief.name}\"",
+                recipient_ids=data.assigned_user_ids,
+            )
+
         await self.db.commit()
         await self.db.refresh(brief)
         await self._log_activity("create", brief, org_id, user_id)
@@ -75,7 +89,11 @@ class ContentBriefService:
             .where(ContentBrief.organization_id == org_id)
             .order_by(ContentBrief.created_at.desc())
         )
-        return [self._to_response(b) for b in result.scalars().all()]
+        briefs = result.scalars().all()
+        responses = [self._to_response(b) for b in briefs]
+        for response in responses:
+            response.assigned_users = await self._load_assignees(UUID(response.id))
+        return responses
 
     async def get_brief(self, brief_id: UUID, user_id: UUID) -> ContentBriefResponse:
         brief = await self._get_brief(brief_id)
@@ -86,14 +104,49 @@ class ContentBriefService:
         brief = await self._get_brief(brief_id)
         await self._check_permission(brief.organization_id, user_id, "update_content")
 
+        field_changed = False
         if data.name is not None:
+            if brief.name != data.name:
+                field_changed = True
             brief.name = data.name
         if data.content_type is not None:
+            if brief.content_type != data.content_type:
+                field_changed = True
             brief.content_type = data.content_type
         if data.platform is not None:
+            if brief.platform != data.platform:
+                field_changed = True
             brief.platform = data.platform
-        if data.deadline_date is not None:
+        if data.deadline_date is not None and brief.deadline_date != data.deadline_date:
+            field_changed = True
             brief.deadline_date = data.deadline_date
+
+        # Sync assignees; newly added users get an assignment notification.
+        new_user_ids: list[UUID] = []
+        if data.assigned_user_ids is not None:
+            new_user_ids = await self._sync_assignments(
+                brief, brief.organization_id, data.assigned_user_ids
+            )
+
+        current_ids = await self._assignment_user_ids(brief.id)
+        if field_changed and current_ids:
+            await self._notify_assignees(
+                brief,
+                brief.organization_id,
+                actor_id=user_id,
+                type="brief_updated",
+                message=f"memperbarui brief \"{brief.name}\"",
+                recipient_ids=current_ids,
+            )
+        if new_user_ids:
+            await self._notify_assignees(
+                brief,
+                brief.organization_id,
+                actor_id=user_id,
+                type="brief_assigned",
+                message=f"menugaskan Anda pada brief \"{brief.name}\"",
+                recipient_ids=new_user_ids,
+            )
 
         await self.db.commit()
         await self._log_activity("update", brief, brief.organization_id, user_id)
@@ -108,6 +161,18 @@ class ContentBriefService:
 
         old_status = brief.status
         brief.status = new_status
+
+        current_ids = await self._assignment_user_ids(brief.id)
+        if current_ids:
+            await self._notify_assignees(
+                brief,
+                brief.organization_id,
+                actor_id=user_id,
+                type="brief_updated",
+                message=f"mengubah status \"{brief.name}\" menjadi {new_status}",
+                recipient_ids=current_ids,
+            )
+
         await self.db.commit()
         await self._log_activity(
             "status_change",
@@ -129,6 +194,17 @@ class ContentBriefService:
             slide.brief_text = data.brief_text
         if data.notes is not None:
             slide.notes = data.notes
+
+        current_ids = await self._assignment_user_ids(brief.id)
+        if current_ids:
+            await self._notify_assignees(
+                brief,
+                brief.organization_id,
+                actor_id=user_id,
+                type="brief_updated",
+                message=f"memperbarui slide \"{slide.slide_title}\" pada brief \"{brief.name}\"",
+                recipient_ids=current_ids,
+            )
 
         await self.db.commit()
         await self.db.refresh(slide)
@@ -195,6 +271,84 @@ class ContentBriefService:
 
     # --- Private helpers ---
 
+    async def _sync_assignments(
+        self, brief: ContentBrief, org_id: UUID, user_ids: List[str]
+    ) -> List[UUID]:
+        """Replace the brief's assignees with user_ids. Returns ids that are NEW
+        (for assignment notifications). Ids must be members of the organization."""
+        valid_ids = await self._org_member_user_ids(org_id)
+        requested = []
+        for raw in user_ids:
+            uid = UUID(raw)
+            if uid not in valid_ids:
+                raise ValidationException(f"User {raw} bukan anggota organization ini")
+            if uid not in requested:
+                requested.append(uid)
+
+        result = await self.db.execute(
+            select(BriefAssignment).where(BriefAssignment.brief_id == brief.id)
+        )
+        existing = {a.user_id: a for a in result.scalars().all()}
+
+        # Remove de-selected assignees
+        for uid, row in existing.items():
+            if uid not in requested:
+                await self.db.delete(row)
+
+        # Add new assignees
+        added = [uid for uid in requested if uid not in existing]
+        for uid in added:
+            self.db.add(BriefAssignment(brief_id=brief.id, user_id=uid))
+        return added
+
+    async def _assignment_user_ids(self, brief_id: UUID) -> List[UUID]:
+        """Current assignee user ids of a brief."""
+        result = await self.db.execute(
+            select(BriefAssignment.user_id).where(BriefAssignment.brief_id == brief_id)
+        )
+        return [r[0] for r in result.all()]
+
+    async def _org_member_user_ids(self, org_id: UUID) -> set[UUID]:
+        result = await self.db.execute(
+            select(TeamMember.user_id).where(TeamMember.organization_id == org_id)
+        )
+        return {r[0] for r in result.all()}
+
+    async def _notify_assignees(
+        self,
+        brief: ContentBrief,
+        org_id: UUID,
+        actor_id: UUID,
+        type: str,
+        message: str,
+        recipient_ids: List[UUID],
+    ) -> None:
+        """Insert one notification per recipient; the actor never notifies themself."""
+        for uid in recipient_ids:
+            if uid == actor_id:
+                continue
+            self.db.add(
+                Notification(
+                    organization_id=org_id,
+                    recipient_user_id=uid,
+                    type=type,
+                    title=brief.name,
+                    message=message,
+                    entity_type="content_brief",
+                    entity_id=brief.id,
+                )
+            )
+
+    async def _load_assignees(self, brief_id: UUID) -> List[BriefAssignee]:
+        """Assignees with display names, ordered by name."""
+        result = await self.db.execute(
+            select(User.id, User.name)
+            .join(BriefAssignment, BriefAssignment.user_id == User.id)
+            .where(BriefAssignment.brief_id == brief_id)
+            .order_by(User.name)
+        )
+        return [BriefAssignee(id=str(uid), name=name) for uid, name in result.all()]
+
     async def _log_activity(
         self,
         action: str,
@@ -229,7 +383,9 @@ class ContentBriefService:
             .where(ContentBrief.id == brief_id)
         )
         b = result.scalar_one()
-        return self._to_response(b)
+        response = self._to_response(b)
+        response.assigned_users = await self._load_assignees(brief_id)
+        return response
 
     async def _get_slide(self, slide_id: UUID) -> BriefSlide:
         result = await self.db.execute(select(BriefSlide).where(BriefSlide.id == slide_id))

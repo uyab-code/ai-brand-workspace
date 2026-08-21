@@ -20,7 +20,8 @@ export const contentBriefsApi = {
     contentType: string,
     platform: string,
     slides: { slide_title: string; brief_text: string; notes?: string }[],
-    deadlineDate?: string
+    deadlineDate?: string,
+    assignedUserIds?: string[]
   ): Promise<ApiResponse<ContentBrief>> => {
     const res = await api.post("/content-briefs/", {
       organization_id: orgId,
@@ -30,6 +31,7 @@ export const contentBriefsApi = {
       platform,
       deadline_date: deadlineDate || null,
       slides,
+      assigned_user_ids: assignedUserIds && assignedUserIds.length > 0 ? assignedUserIds : null,
     })
     return res.data
   },
@@ -41,6 +43,7 @@ export const contentBriefsApi = {
       content_type?: string
       platform?: string
       deadline_date?: string | null
+      assigned_user_ids?: string[]
     }
   ): Promise<ApiResponse<ContentBrief>> => {
     const res = await api.put(`/content-briefs/${briefId}`, data)

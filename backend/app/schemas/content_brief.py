@@ -28,6 +28,11 @@ class BriefSlideResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class BriefAssignee(BaseModel):
+    id: str
+    name: str
+
+
 # --- Brief ---
 
 class CreateBriefRequest(BaseModel):
@@ -38,6 +43,7 @@ class CreateBriefRequest(BaseModel):
     platform: str = Field(default="instagram", pattern="^(instagram|tiktok|facebook|twitter|linkedin)$")
     deadline_date: Optional[date] = None
     slides: List[SlideRequest] = Field(..., min_length=1, max_length=10)
+    assigned_user_ids: Optional[List[str]] = None
 
 
 class UpdateBriefRequest(BaseModel):
@@ -45,6 +51,7 @@ class UpdateBriefRequest(BaseModel):
     content_type: Optional[str] = Field(None, pattern="^(feed|story|carousel)$")
     platform: Optional[str] = Field(None, pattern="^(instagram|tiktok|facebook|twitter|linkedin)$")
     deadline_date: Optional[date] = None
+    assigned_user_ids: Optional[List[str]] = None
 
 
 class UpdateStatusRequest(BaseModel):
@@ -64,6 +71,7 @@ class ContentBriefResponse(BaseModel):
     deadline_date: Optional[date] = None
     status: str
     slides: List[BriefSlideResponse] = []
+    assigned_users: List[BriefAssignee] = []
     created_at: Optional[str] = None
 
     model_config = {"from_attributes": True}

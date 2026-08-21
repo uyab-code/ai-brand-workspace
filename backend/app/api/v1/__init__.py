@@ -10,6 +10,7 @@ from app.api.v1.designs import router as designs_router
 from app.api.v1.credits import router as credits_router
 from app.api.v1.admin import router as admin_router
 from app.api.v1.activities import router as activities_router
+from app.api.v1.notifications import router as notifications_router
 
 api_router = APIRouter()
 
@@ -23,3 +24,4 @@ api_router.include_router(designs_router, prefix="/designs", tags=["Designs"])
 api_router.include_router(credits_router, prefix="/credits", tags=["Credits"])
 api_router.include_router(admin_router, prefix="/admin", tags=["Admin"])
 api_router.include_router(activities_router, prefix="/activities", tags=["Activities"])
+api_router.include_router(notifications_router, prefix="/notifications", tags=["Notifications"])

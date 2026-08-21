@@ -1,3 +1,8 @@
+export interface BriefAssignee {
+  id: string
+  name: string
+}
+
 export interface ContentBrief {
   id: string
   organization_id: string
@@ -8,6 +13,7 @@ export interface ContentBrief {
   deadline_date: string | null
   status: ContentStatus
   slides: BriefSlide[]
+  assigned_users?: BriefAssignee[]
   created_at: string | null
 }
 

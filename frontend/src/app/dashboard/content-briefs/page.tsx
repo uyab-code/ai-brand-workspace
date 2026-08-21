@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { organizationsApi } from "@/api/organizations"
 import { clientsApi } from "@/api/clients"
 import { contentBriefsApi } from "@/api/content-briefs"
+import { TeamMember } from "@/types/organization"
 import { ContentBrief, PLATFORM_LABELS, PLATFORM_BADGE_VARIANTS, ContentStatus } from "@/types/content-brief"
 import { Client } from "@/types/client"
 import { StatusBadge, ContentTypeBadge } from "@/components/ui/status-badge"
@@ -32,9 +33,17 @@ export default function ContentBriefsPage() {
   const [slides, setSlides] = useState<{ slide_title: string; brief_text: string; notes: string }[]>([
     { slide_title: "", brief_text: "", notes: "" },
   ])
+  const [members, setMembers] = useState<TeamMember[]>([])
+  const [assignedUserIds, setAssignedUserIds] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
 
   useEffect(() => { load() }, [])
+
+  const toggleAssignee = (userId: string) => {
+    setAssignedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    )
+  }
 
   const load = async () => {
     const o = await organizationsApi.list()
@@ -64,12 +73,14 @@ export default function ContentBriefsPage() {
     const validSlides = slides.filter((s) => s.slide_title && s.brief_text)
     if (validSlides.length === 0) return
     const r = await contentBriefsApi.create(
-      orgId, clientId, name, contentType, platform, validSlides, deadlineDate || undefined
+      orgId, clientId, name, contentType, platform, validSlides, deadlineDate || undefined,
+      assignedUserIds.length > 0 ? assignedUserIds : undefined
     )
     if (r.success) {
       setBriefs([r.data, ...briefs])
       setName(""); setContentType("feed"); setPlatform("instagram"); setClientId(""); setDeadlineDate("")
       setSlides([{ slide_title: "", brief_text: "", notes: "" }])
+      setAssignedUserIds([])
       setShowForm(false)
     }
   }
@@ -99,7 +110,16 @@ export default function ContentBriefsPage() {
         title="Content Library"
         description="Kelola brief konten untuk semua klien dan platform"
         actions={
-          <Button onClick={() => setShowForm(!showForm)}>
+          <Button onClick={() => {
+            const next = !showForm
+            setShowForm(next)
+            if (next && orgId && members.length === 0) {
+              organizationsApi.getMembers(orgId).then((r) => {
+                if (r.success) setMembers(r.data)
+              })
+            }
+            if (!next) setAssignedUserIds([])
+          }}>
             {showForm ? "Batal" : "+ Buat Brief Baru"}
           </Button>
         }
@@ -186,6 +206,30 @@ export default function ContentBriefsPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Assign to team members */}
+              {members.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <Label className="text-sm font-medium">Assign ke (opsional)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    User yang dipilih akan mendapat notifikasi saat brief ini dibuat atau diubah.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {members.map((m) => (
+                      <label key={m.id} className="flex items-center gap-2 rounded border border-input bg-background px-3 py-2 text-sm cursor-pointer hover:bg-muted/50">
+                        <input
+                          type="checkbox"
+                          checked={assignedUserIds.includes(m.user_id)}
+                          onChange={() => toggleAssignee(m.user_id)}
+                          className="h-4 w-4 accent-[var(--primary)]"
+                        />
+                        <span className="font-medium text-foreground">{m.user_name || m.user_email}</span>
+                        <span className="text-xs text-muted-foreground">({m.role})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Button type="submit">Simpan Brief</Button>
             </form>
           </CardContent>

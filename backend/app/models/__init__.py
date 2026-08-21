@@ -3,9 +3,10 @@ from app.models.user import User
 from app.models.organization import Organization, TeamMember
 from app.models.invitation import Invitation
 from app.models.client import Client, BrandAsset
-from app.models.content_brief import ContentBrief, BriefSlide
+from app.models.content_brief import ContentBrief, BriefSlide, BriefAssignment
 from app.models.design import GeneratedDesign
 from app.models.credit import Credit
 from app.models.activity import ActivityLog
+from app.models.notification import Notification
 
-__all__ = ["Base", "User", "Organization", "TeamMember", "Invitation", "Client", "BrandAsset", "ContentBrief", "BriefSlide", "GeneratedDesign", "Credit", "ActivityLog"]
+__all__ = ["Base", "User", "Organization", "TeamMember", "Invitation", "Client", "BrandAsset", "ContentBrief", "BriefSlide", "BriefAssignment", "GeneratedDesign", "Credit", "ActivityLog", "Notification"]
