@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.core.permissions import Role, has_permission
-from app.models.client import Client
+from app.models.client import BrandAsset, Client
 from app.models.organization import TeamMember
 from app.models.user import User
 from app.schemas.client import ClientResponse, CreateClientRequest, UpdateClientRequest
@@ -15,6 +15,19 @@ from app.schemas.client import ClientResponse, CreateClientRequest, UpdateClient
 class ClientService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def _logo_urls(self, client_ids: list[UUID]) -> dict[UUID, str | None]:
+        """Map client_id -> logo file_url for the given clients."""
+        if not client_ids:
+            return {}
+        result = await self.db.execute(
+            select(BrandAsset).where(
+                BrandAsset.client_id.in_(client_ids),
+                BrandAsset.asset_type == "logo",
+                BrandAsset.file_url.isnot(None),
+            )
+        )
+        return {a.client_id: a.file_url for a in result.scalars().all()}
 
     async def create_client(self, data: CreateClientRequest, user_id: UUID) -> ClientResponse:
         org_id = UUID(data.organization_id)
@@ -28,12 +41,15 @@ class ClientService:
     async def list_clients(self, org_id: UUID, user_id: UUID) -> List[ClientResponse]:
         await self._check_membership(org_id, user_id)
         result = await self.db.execute(select(Client).where(Client.organization_id == org_id))
-        return [ClientResponse(id=str(c.id), organization_id=str(c.organization_id), name=c.name, description=c.description, status=c.status) for c in result.scalars().all()]
+        clients = result.scalars().all()
+        logos = await self._logo_urls([c.id for c in clients])
+        return [ClientResponse(id=str(c.id), organization_id=str(c.organization_id), name=c.name, description=c.description, status=c.status, logo_url=logos.get(c.id)) for c in clients]
 
     async def get_client(self, client_id: UUID, user_id: UUID) -> ClientResponse:
         client = await self._get_client(client_id)
         await self._check_membership(client.organization_id, user_id)
-        return ClientResponse(id=str(client.id), organization_id=str(client.organization_id), name=client.name, description=client.description, status=client.status)
+        logos = await self._logo_urls([client.id])
+        return ClientResponse(id=str(client.id), organization_id=str(client.organization_id), name=client.name, description=client.description, status=client.status, logo_url=logos.get(client.id))
 
     async def update_client(self, client_id: UUID, data: UpdateClientRequest, user_id: UUID) -> ClientResponse:
         client = await self._get_client(client_id)
@@ -43,7 +59,8 @@ class ClientService:
         if data.status is not None: client.status = data.status
         await self.db.commit()
         await self.db.refresh(client)
-        return ClientResponse(id=str(client.id), organization_id=str(client.organization_id), name=client.name, description=client.description, status=client.status)
+        logos = await self._logo_urls([client.id])
+        return ClientResponse(id=str(client.id), organization_id=str(client.organization_id), name=client.name, description=client.description, status=client.status, logo_url=logos.get(client.id))
 
     async def delete_client(self, client_id: UUID, user_id: UUID):
         client = await self._get_client(client_id)

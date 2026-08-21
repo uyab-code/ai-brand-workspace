@@ -21,5 +21,6 @@ class ClientResponse(BaseModel):
     name: str
     description: Optional[str] = None
     status: str
+    logo_url: Optional[str] = None
 
     model_config = {"from_attributes": True}

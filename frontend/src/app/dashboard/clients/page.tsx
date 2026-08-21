@@ -12,13 +12,29 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Users } from "lucide-react"
 
-function ClientInitials({ name }: { name: string }) {
+// File upload disimpan di backend origin (/uploads/...), jadi perlu prefix API origin
+const apiOrigin = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").replace(/\/api\/v1\/?$/, "")
+const assetUrl = (p: string | null | undefined) => (p?.startsWith("/") ? `${apiOrigin}${p}` : p || "")
+
+function ClientAvatar({ name, logoUrl }: { name: string; logoUrl?: string | null }) {
+  const [imgError, setImgError] = useState(false)
   const initials = name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2)
+
+  if (logoUrl && !imgError) {
+    return (
+      <img
+        src={assetUrl(logoUrl)}
+        alt={name}
+        className="h-12 w-12 rounded-lg object-cover border border-border shrink-0"
+        onError={() => setImgError(true)}
+      />
+    )
+  }
 
   return (
     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted text-sm font-semibold text-foreground shrink-0">
@@ -101,7 +117,7 @@ export default function ClientsPage() {
             <Link key={c.id} href={`/dashboard/clients/${c.id}`}>
               <Card className="p-4 hover:shadow-md cursor-pointer transition-all duration-200 h-full">
                 <div className="flex gap-4">
-                  <ClientInitials name={c.name} />
+                  <ClientAvatar name={c.name} logoUrl={c.logo_url} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold text-foreground truncate">{c.name}</h3>

@@ -4,6 +4,7 @@ export interface Client {
   name: string
   description: string | null
   status: "active" | "inactive"
+  logo_url?: string | null
 }
 
 export type ColorRole = "primary" | "secondary" | "accent"
